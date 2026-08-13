@@ -10,6 +10,15 @@
     margin: 0;
 }
 
+/*
+ * O reset acima sobrescreve o `margin: auto` que o user-agent aplica em <dialog>,
+ * e um modal menor que a viewport fica preso no canto superior esquerdo em vez de
+ * centralizado. Restaura a centralização para todo <dialog> do projeto.
+ */
+dialog {
+    margin: auto;
+}
+
 html {
     /* `clip`, não `hidden`: não cria contexto de rolagem e permite `position: sticky`. */
     overflow-x: clip;

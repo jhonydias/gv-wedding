@@ -1,0 +1,47 @@
+---
+import Base from '../layouts/Base.astro';
+import Presentes from '../components/Presentes.astro';
+---
+
+<Base
+    titulo="Presentes · Gisele & Victor"
+    descricao="Lista de presentes de Gisele e Victor, com pagamento por Pix."
+    atual="/presentes"
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1>Presentes</h1>
+            <p class="cabeca__apoio">Se você quiser nos presentear</p>
+        </div>
+    </header>
+
+    <section class="secao">
+        <div class="wrap">
+            <p class="intro texto-corpo">
+                A presença de vocês já é o presente. Mas se quiserem contribuir com o começo da
+                nossa vida a dois, escolham uma cota abaixo — é tudo por Pix, direto para a gente.
+            </p>
+            <Presentes />
+        </div>
+    </section>
+</Base>
+
+<style>
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 34svh;
+        padding-block: calc(var(--e-6) + var(--e-4)) var(--e-4);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+    .intro {
+        margin-block-end: var(--e-5);
+        font-size: var(--t-lg);
+    }
+</style>

@@ -1,0 +1,259 @@
+---
+import QRCode from 'qrcode';
+import { PRESENTES, FAIXAS, PIX, emReais } from '../data/presentes';
+import { brCode, txidDe } from '../lib/pix';
+
+const configurado = PIX.chave.length > 0 && PIX.nome.length > 0;
+
+/**
+ * QR gerado NO BUILD, como SVG inline.
+ *
+ * Nada de API externa de geração de QR: colocaria a chave Pix dos noivos na URL de um
+ * terceiro, e o QR sumiria se o serviço saísse do ar. A lib fica só em devDependencies —
+ * nenhum byte dela vai para o cliente, o que sai é SVG estático.
+ */
+const itens = configurado
+    ? await Promise.all(
+          PRESENTES.map(async (p) => {
+              const codigo = brCode({
+                  chave: PIX.chave,
+                  nome: PIX.nome,
+                  cidade: PIX.cidade,
+                  valor: p.valor,
+                  txid: txidDe(p.slug),
+              });
+              const qr = await QRCode.toString(codigo, {
+                  type: 'svg',
+                  errorCorrectionLevel: 'M',
+                  margin: 4, // quiet zone de 4 módulos
+                  color: { dark: '#48492A', light: '#F7F1EB' },
+              });
+              const msg = encodeURIComponent(
+                  `Oi! Acabei de mandar o Pix do presente "${p.nome}". Parabéns aos dois!`,
+              );
+              return { ...p, codigo, qr, whatsapp: `https://wa.me/?text=${msg}` };
+          }),
+      )
+    : [];
+---
+
+{
+    !configurado && (
+        <p class="aviso" role="alert">
+            <strong>Pix não configurado.</strong> Defina <code>PUBLIC_PIX_CHAVE</code> e{' '}
+            <code>PUBLIC_PIX_NOME</code> no ambiente. Veja <code>.env.example</code>.
+        </p>
+    )
+}
+
+{
+    FAIXAS.map((faixa) => {
+        const daFaixa = itens.filter((i) => i.faixa === faixa.id);
+        if (daFaixa.length === 0) return null;
+        return (
+            <section class="faixa" aria-labelledby={`faixa-${faixa.id}`}>
+                <h2 class="faixa__titulo" id={`faixa-${faixa.id}`}>
+                    {faixa.titulo}
+                </h2>
+                <p class="faixa__apoio">{faixa.apoio}</p>
+
+                <ul class="grade">
+                    {daFaixa.map((p, i) => (
+                        <li class="presente" data-revela style={`--atraso:${Math.min(i, 4) * 70}ms`}>
+                            <h3 class="presente__nome">{p.nome}</h3>
+                            {p.descricao && <p class="presente__desc">{p.descricao}</p>}
+                            <p class="presente__valor tabular">{emReais(p.valor)}</p>
+                            <button
+                                type="button"
+                                class="botao botao--primario presente__botao"
+                                data-presente
+                                data-nome={p.nome}
+                                data-valor={emReais(p.valor)}
+                                data-codigo={p.codigo}
+                                data-qr={p.qr}
+                                data-whatsapp={p.whatsapp}
+                            >
+                                Presentear
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </section>
+        );
+    })
+}
+
+<dialog id="pix" class="pix" aria-labelledby="pix-titulo">
+    <button class="pix__fechar" type="button" data-fechar aria-label="Fechar">&times;</button>
+
+    <h2 class="pix__titulo" id="pix-titulo" data-pix-nome></h2>
+    <p class="pix__valor tabular" data-pix-valor></p>
+
+    <div class="pix__qr" data-pix-qr aria-hidden="true"></div>
+
+    <p class="pix__rotulo">Ou copie o código Pix:</p>
+    <code class="pix__codigo" data-pix-codigo></code>
+
+    <button class="botao botao--primario pix__copiar" type="button" data-copiar>
+        Copiar código Pix
+    </button>
+    <p class="pix__copiado" data-copiado aria-live="polite"></p>
+
+    <p class="pix__whats">
+        Depois de pagar, se quiser, <a data-pix-whatsapp target="_blank" rel="noopener">avise a
+        gente no WhatsApp</a>.
+    </p>
+</dialog>
+
+<script>
+    import { modalPix } from '../lib/copiar';
+    modalPix();
+</script>
+
+<style>
+    .faixa + .faixa {
+        margin-block-start: var(--e-5);
+    }
+    .faixa__titulo {
+        font-size: var(--t-xl);
+    }
+    .faixa__apoio {
+        margin-block: 0.2em var(--e-3);
+        font-size: var(--t-xs);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .grade {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+        gap: var(--e-2);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .presente {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: var(--e-3);
+        background: var(--bg-alt);
+        border-radius: var(--raio);
+    }
+    .presente__nome {
+        font-size: var(--t-lg);
+        text-transform: none;
+    }
+    .presente__desc {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .presente__valor {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+    }
+    .presente__botao {
+        margin-block-start: auto;
+        inline-size: 100%;
+    }
+
+    .aviso {
+        margin-block-end: var(--e-3);
+        padding: var(--e-2);
+        border: 1px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+    }
+
+    /* --- Modal --- */
+    .pix {
+        inline-size: min(92vw, 26rem);
+        padding: var(--e-4);
+        border: 0;
+        border-radius: var(--raio);
+        background: var(--creme);
+        color: var(--oliva);
+        text-align: center;
+    }
+    .pix::backdrop {
+        background: color-mix(in srgb, #48492a 88%, transparent);
+        backdrop-filter: blur(6px);
+    }
+
+    .pix__fechar {
+        position: absolute;
+        inset-block-start: var(--e-1);
+        inset-inline-end: var(--e-1);
+        inline-size: 44px;
+        block-size: 44px;
+        background: none;
+        border: 0;
+        color: var(--oliva);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .pix__titulo {
+        font-size: var(--t-lg);
+        text-transform: none;
+    }
+    .pix__valor {
+        margin-block: 0.2em var(--e-3);
+        font-family: var(--fonte-display);
+        font-size: var(--t-xl);
+    }
+
+    .pix__qr {
+        inline-size: 220px;
+        block-size: 220px;
+        margin-inline: auto;
+    }
+    .pix__qr :global(svg) {
+        inline-size: 100%;
+        block-size: 100%;
+    }
+
+    .pix__rotulo {
+        margin-block-start: var(--e-3);
+        font-size: var(--t-xs);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .pix__codigo {
+        display: block;
+        margin-block: 0.4rem var(--e-2);
+        padding: 0.6rem;
+        max-block-size: 6rem;
+        overflow-y: auto;
+        background: var(--areia);
+        border-radius: var(--raio);
+        font-family: ui-monospace, monospace;
+        font-size: 0.72rem;
+        line-height: 1.4;
+        word-break: break-all;
+        text-align: start;
+        /* Selecionável à mão, sempre — o fallback do fallback. */
+        user-select: all;
+    }
+
+    .pix__copiar {
+        inline-size: 100%;
+    }
+    .pix__copiado {
+        min-block-size: 1.4em;
+        margin-block-start: 0.4rem;
+        font-size: var(--t-xs);
+        font-weight: 600;
+        color: var(--laranja-texto);
+    }
+    .pix__whats {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+</style>
