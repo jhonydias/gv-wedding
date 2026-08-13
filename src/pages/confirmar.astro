@@ -1,0 +1,69 @@
+---
+import Base from '../layouts/Base.astro';
+import FormRsvp from '../components/FormRsvp.astro';
+import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+
+/**
+ * Prazo de confirmação. Comparado no BUILD e também no cliente — o site é estático
+ * e pode ficar semanas sem novo build, então só a checagem de build não basta.
+ */
+const prazo = EVENTO.rsvpAte ? new Date(EVENTO.rsvpAte) : null;
+const encerrado = prazo !== null && Date.now() > prazo.getTime();
+---
+
+<Base
+    titulo="Confirmar presença · Gisele & Victor"
+    descricao="Confirme sua presença no casamento de Gisele e Victor."
+    atual="/confirmar"
+    naoIndexar
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1>Confirmar presença</h1>
+            <p class="cabeca__apoio">
+                <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
+                · {EVENTO.local.nome}
+            </p>
+        </div>
+    </header>
+
+    <section class="secao">
+        <div class="wrap">
+            {
+                encerrado ? (
+                    <div class="encerrado">
+                        <h2>O prazo de confirmação encerrou</h2>
+                        <p class="texto-corpo">
+                            Se ainda quiser falar com a gente, chame no WhatsApp — a gente dá um
+                            jeito.
+                        </p>
+                    </div>
+                ) : (
+                    <FormRsvp />
+                )
+            }
+        </div>
+    </section>
+</Base>
+
+<style>
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 34svh;
+        padding-block: calc(var(--e-6) + var(--e-4)) var(--e-4);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+    .encerrado {
+        max-inline-size: var(--largura-texto);
+    }
+    .encerrado h2 {
+        margin-block-end: var(--e-2);
+    }
+</style>

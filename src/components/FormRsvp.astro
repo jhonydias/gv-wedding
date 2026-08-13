@@ -1,0 +1,233 @@
+---
+const endpoint = import.meta.env.PUBLIC_RSVP_ENDPOINT ?? '';
+const configurado = endpoint.length > 0;
+---
+
+{
+    !configurado && (
+        <p class="aviso" role="alert">
+            <strong>Endpoint não configurado.</strong> Defina <code>PUBLIC_RSVP_ENDPOINT</code> no
+            ambiente com a URL <code>/exec</code> do Apps Script. Veja <code>README-rsvp.md</code>.
+        </p>
+    )
+}
+
+<form class="rsvp" data-rsvp action={endpoint} method="POST" novalidate>
+    <p class="rsvp__erro" data-erro-geral role="alert" hidden>
+        <strong>Não conseguimos registrar.</strong>
+        <span data-erro-detalhe></span>
+        Seus dados continuam preenchidos — tente de novo, ou fale com a gente pelo WhatsApp.
+    </p>
+
+    <div class="campo">
+        <label for="nome">Nome completo</label>
+        <input
+            id="nome"
+            name="nome"
+            type="text"
+            autocomplete="name"
+            required
+            maxlength="80"
+            aria-describedby="erro-nome"
+        />
+        <p class="campo__erro" id="erro-nome" hidden></p>
+    </div>
+
+    <div class="campo">
+        <label for="contato">E-mail ou celular</label>
+        <input
+            id="contato"
+            name="contato"
+            type="text"
+            autocomplete="email"
+            required
+            aria-describedby="erro-contato ajuda-contato"
+        />
+        <p class="campo__ajuda" id="ajuda-contato">Para a gente conseguir falar com você.</p>
+        <p class="campo__erro" id="erro-contato" hidden></p>
+    </div>
+
+    <fieldset class="campo">
+        <legend>Você vai?</legend>
+        {/* Nenhuma opção pré-marcada: um "sim" por padrão vira confirmação acidental
+            — e, no contexto, um convidado a mais no buffet. */}
+        <label class="radio">
+            <input type="radio" name="comparece" value="sim" data-grupo="comparece" />
+            <span>Sim, eu vou</span>
+        </label>
+        <label class="radio">
+            <input type="radio" name="comparece" value="nao" />
+            <span>Não vou conseguir ir</span>
+        </label>
+        <p class="campo__erro" id="erro-comparece" hidden></p>
+    </fieldset>
+
+    <div class="campo" data-acompanhantes hidden>
+        <label for="acompanhantes">Acompanhantes</label>
+        <textarea
+            id="acompanhantes"
+            name="acompanhantes"
+            rows="3"
+            aria-describedby="ajuda-acompanhantes"></textarea>
+        <p class="campo__ajuda" id="ajuda-acompanhantes">Um nome por linha. Deixe vazio se vier só.</p>
+    </div>
+
+    <div class="campo">
+        <label for="restricao">Restrição alimentar <span class="opcional">(opcional)</span></label>
+        <textarea id="restricao" name="restricao" rows="2" maxlength="300" aria-describedby="erro-restricao"></textarea>
+        <p class="campo__erro" id="erro-restricao" hidden></p>
+    </div>
+
+    <div class="campo">
+        <label for="recado">Recado para os noivos <span class="opcional">(opcional)</span></label>
+        <textarea id="recado" name="recado" rows="3" maxlength="500" aria-describedby="erro-recado"></textarea>
+        <p class="campo__erro" id="erro-recado" hidden></p>
+    </div>
+
+    {/* Honeypot. Fora da tela, nunca `display:none` (bots detectam), sem foco de
+        teclado e invisível ao leitor de tela. */}
+    <div class="gotcha" aria-hidden="true">
+        <label for="_gotcha">Não preencha este campo</label>
+        <input id="_gotcha" name="_gotcha" type="text" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <button class="botao botao--primario" type="submit" data-enviar>Confirmar presença</button>
+
+    <p class="rsvp__privacidade">
+        Seus dados são usados apenas para organizar o casamento e não são compartilhados.
+    </p>
+</form>
+
+<div class="sucesso" data-sucesso tabindex="-1" role="status" hidden>
+    <h2 data-sucesso-titulo>Presença confirmada!</h2>
+    <p data-sucesso-texto></p>
+    <p class="sucesso__protocolo">
+        Protocolo: <strong data-protocolo>—</strong>
+    </p>
+</div>
+
+<script>
+    import { rsvp } from '../lib/rsvp';
+    rsvp();
+</script>
+
+<style>
+    .rsvp {
+        display: grid;
+        gap: var(--e-3);
+        max-inline-size: var(--largura-texto);
+    }
+
+    .campo {
+        display: grid;
+        gap: 0.35rem;
+        border: 0;
+        padding: 0;
+        margin: 0;
+    }
+
+    label,
+    legend {
+        font-size: var(--t-sm);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+    .opcional {
+        font-weight: 400;
+        color: var(--texto-suave);
+    }
+
+    input[type='text'],
+    textarea {
+        inline-size: 100%;
+        min-block-size: 44px;
+        padding: 0.6rem 0.75rem;
+        background: var(--creme);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+        color: var(--texto);
+    }
+    textarea {
+        resize: vertical;
+    }
+    input[aria-invalid='true'],
+    textarea[aria-invalid='true'] {
+        border-color: var(--laranja-texto);
+        border-width: 2px;
+    }
+    input[readonly],
+    textarea[readonly] {
+        opacity: 0.7;
+    }
+
+    .radio {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-block-size: 44px;
+        font-weight: 400;
+        cursor: pointer;
+    }
+    .radio input {
+        inline-size: 20px;
+        block-size: 20px;
+        accent-color: var(--laranja-texto);
+    }
+
+    .campo__ajuda {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .campo__erro {
+        font-size: var(--t-xs);
+        font-weight: 600;
+        color: var(--laranja-texto);
+    }
+
+    .rsvp__erro {
+        padding: var(--e-2);
+        border: 2px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+    }
+
+    .rsvp__privacidade {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+
+    .aviso {
+        margin-block-end: var(--e-3);
+        padding: var(--e-2);
+        border: 1px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+    }
+
+    .gotcha {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .sucesso {
+        max-inline-size: var(--largura-texto);
+        padding: var(--e-4);
+        background: var(--areia);
+        border-radius: var(--raio);
+    }
+    .sucesso h2 {
+        margin-block-end: var(--e-2);
+    }
+    .sucesso__protocolo {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+</style>
