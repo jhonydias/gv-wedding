@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
     site: 'https://jhonydias.github.io',
@@ -15,4 +16,13 @@ export default defineConfig({
 
     // Nenhum domínio externo de imagem: tudo é processado no build e servido daqui.
     image: { domains: [] },
+
+    integrations: [
+        sitemap({
+            // /confirmar é formulário — não faz sentido indexar.
+            // /historia sai enquanto não tiver conteúdo (a página já manda `noindex`).
+            filter: (pagina) =>
+                !pagina.includes('/confirmar') && !pagina.includes('/historia'),
+        }),
+    ],
 });

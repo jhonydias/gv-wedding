@@ -4,6 +4,32 @@ import Hero from '../components/Hero.astro';
 import Contagem from '../components/Contagem.astro';
 import Convite from '../components/Convite.astro';
 import Atalhos from '../components/Atalhos.astro';
+import { EVENTO } from '../data/event';
+
+/**
+ * Dados estruturados do evento. É o que faz o Google oferecer "adicionar à agenda".
+ * `startDate` sai do mesmo instante canônico, com offset — nunca digitado.
+ */
+const dadosEvento = {
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: `Casamento de ${EVENTO.noiva} e ${EVENTO.noivo}`,
+    startDate: EVENTO.quando,
+    eventStatus: 'https://schema.org/EventScheduled',
+    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+    location: {
+        '@type': 'Place',
+        name: EVENTO.local.nome,
+        address: {
+            '@type': 'PostalAddress',
+            streetAddress: EVENTO.local.logradouro,
+            addressLocality: EVENTO.local.cidade,
+            addressRegion: EVENTO.local.uf,
+            postalCode: EVENTO.local.cep,
+            addressCountry: 'BR',
+        },
+    },
+};
 ---
 
 <Base titulo="Gisele & Victor · 31 de janeiro de 2027" atual="/" heroEscuro>
@@ -11,6 +37,8 @@ import Atalhos from '../components/Atalhos.astro';
     <Contagem />
     <Convite />
     <Atalhos />
+
+    <script type="application/ld+json" set:html={JSON.stringify(dadosEvento)} is:inline />
 </Base>
 
 <script>

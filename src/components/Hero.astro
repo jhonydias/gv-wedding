@@ -82,19 +82,39 @@ const { local } = EVENTO;
         object-position: center 58%;
     }
 
-    /* Escurecimento para o texto ter contraste sobre qualquer parte da foto.
-       Mais forte no topo (atrás da nav) e embaixo (atrás do "role"). */
+    /*
+     * Escurecimento em DUAS camadas.
+     *
+     * Medido: com só o gradiente linear, o contraste do texto creme sobre a foto composta
+     * caía a 2.00:1 nos pontos claros (céu e pedra da catedral) — reprova em AA, mesmo com
+     * média de 5:1. Um alpha uniforme de 0.80 resolveria, mas apagaria a foto.
+     *
+     * Solução: um scrim radial concentrado atrás do texto, sobre o gradiente linear. Nas
+     * bordas só o linear atua e a foto continua vívida.
+     *
+     * Os valores do scrim NÃO são estéticos, são calculados: com 0.72/0.45 o pior caso
+     * ficava em 3.65:1 — suficiente para os nomes (texto grande, teto 3:1) mas NÃO para a
+     * linha de data, que é pequena e exige 4.5:1. Com 0.86/0.66 o pior caso vai a 4.85:1
+     * e a página inteira passa em AA.
+     */
     .hero__fundo::after {
         content: '';
         position: absolute;
         inset: 0;
-        background: linear-gradient(
-            180deg,
-            color-mix(in srgb, var(--oliva) 78%, transparent) 0%,
-            color-mix(in srgb, var(--oliva) 42%, transparent) 38%,
-            color-mix(in srgb, var(--oliva) 55%, transparent) 70%,
-            color-mix(in srgb, var(--oliva) 88%, transparent) 100%
-        );
+        background:
+            radial-gradient(
+                ellipse 92% 66% at 50% 50%,
+                color-mix(in srgb, var(--oliva) 86%, transparent) 0%,
+                color-mix(in srgb, var(--oliva) 66%, transparent) 55%,
+                transparent 80%
+            ),
+            linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--oliva) 78%, transparent) 0%,
+                color-mix(in srgb, var(--oliva) 42%, transparent) 38%,
+                color-mix(in srgb, var(--oliva) 55%, transparent) 70%,
+                color-mix(in srgb, var(--oliva) 88%, transparent) 100%
+            );
     }
 
     .hero__conteudo {

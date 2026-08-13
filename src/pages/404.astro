@@ -1,0 +1,42 @@
+---
+import Base from '../layouts/Base.astro';
+import { rota } from '../lib/url';
+import amp from '../assets/marca/e-comercial.svg?raw';
+---
+
+<Base titulo="Página não encontrada · Gisele & Victor" atual="/404" naoIndexar>
+    <section class="erro inverso">
+        <div class="wrap">
+            <span class="erro__amp" aria-hidden="true" set:html={amp} />
+            <h1>Essa página a gente não encontrou</h1>
+            <p class="erro__texto">
+                O link pode estar errado, ou a página pode ter mudado de lugar.
+            </p>
+            <a class="botao botao--primario" href={rota('/')}>Voltar ao início</a>
+        </div>
+    </section>
+</Base>
+
+<style>
+    .erro {
+        display: grid;
+        place-items: center;
+        min-block-size: 100svh;
+        text-align: center;
+    }
+    .erro__amp {
+        display: block;
+        inline-size: 3.5rem;
+        margin-inline: auto;
+        margin-block-end: var(--e-3);
+        color: var(--laranja);
+    }
+    .erro__amp :global(svg) {
+        inline-size: 100%;
+        height: auto;
+    }
+    .erro__texto {
+        margin-block: var(--e-2) var(--e-4);
+        color: var(--texto-suave);
+    }
+</style>

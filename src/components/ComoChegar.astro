@@ -82,8 +82,12 @@ const { local } = EVENTO;
         align-items: center;
     }
     .corrida__outros a {
-        min-block-size: 44px;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        min-block-size: 44px;
+        /* Também na largura: "Waze" é curto e o alvo saía com 38px. */
+        min-inline-size: 44px;
+        padding-inline: 0.5rem;
     }
 </style>
