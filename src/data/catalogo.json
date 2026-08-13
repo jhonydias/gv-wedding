@@ -4,7 +4,7 @@
     "nome": "Jogo de taças",
     "valor": 90,
     "faixa": "lembranca",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "Seis taças de cristal",
     "cotas": 1,
     "ordem": 10
@@ -14,7 +14,7 @@
     "nome": "Jogo de toalhas",
     "valor": 120,
     "faixa": "lembranca",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 20
@@ -24,7 +24,7 @@
     "nome": "Vela aromática",
     "valor": 95,
     "faixa": "lembranca",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 3,
     "ordem": 30
@@ -34,7 +34,7 @@
     "nome": "Tábua de servir",
     "valor": 140,
     "faixa": "lembranca",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 40
@@ -44,7 +44,7 @@
     "nome": "Jogo de jantar",
     "valor": 320,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "Para as visitas de domingo",
     "cotas": 1,
     "ordem": 50
@@ -54,7 +54,7 @@
     "nome": "Jogo de cama",
     "valor": 280,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 60
@@ -64,7 +64,7 @@
     "nome": "Liquidificador",
     "valor": 250,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 70
@@ -74,7 +74,7 @@
     "nome": "Air fryer",
     "valor": 450,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 80
@@ -84,7 +84,7 @@
     "nome": "Micro-ondas",
     "valor": 700,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 90
@@ -94,7 +94,7 @@
     "nome": "Aspirador",
     "valor": 600,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 100
@@ -104,7 +104,7 @@
     "nome": "Jogo de panelas",
     "valor": 520,
     "faixa": "casa",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 110
@@ -114,7 +114,7 @@
     "nome": "Geladeira",
     "valor": 2500,
     "faixa": "grande",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "Cota única — a maior de todas",
     "cotas": 1,
     "ordem": 120
@@ -124,7 +124,7 @@
     "nome": "Máquina de lavar",
     "valor": 2200,
     "faixa": "grande",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 130
@@ -134,7 +134,7 @@
     "nome": "Sofá",
     "valor": 1800,
     "faixa": "grande",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 140
@@ -144,7 +144,7 @@
     "nome": "Colchão",
     "valor": 1500,
     "faixa": "grande",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": 1,
     "ordem": 150
@@ -154,7 +154,7 @@
     "nome": "Cota da passagem",
     "valor": 500,
     "faixa": "luademel",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": null,
     "ordem": 160
@@ -164,7 +164,7 @@
     "nome": "Cota da hospedagem",
     "valor": 800,
     "faixa": "luademel",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": null,
     "ordem": 170
@@ -174,7 +174,7 @@
     "nome": "Um passeio a dois",
     "valor": 300,
     "faixa": "luademel",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": null,
     "ordem": 180
@@ -184,7 +184,7 @@
     "nome": "Um jantar especial",
     "valor": 400,
     "faixa": "luademel",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "",
     "cotas": null,
     "ordem": 190
@@ -194,7 +194,7 @@
     "nome": "Cota livre da lua de mel",
     "valor": 200,
     "faixa": "luademel",
-    "imagem": "",
+    "imagem": "https://m.media-amazon.com/images/I/71oteDN99ZL._AC_SX679_.jpg",
     "descricao": "Qualquer valor ajuda",
     "cotas": null,
     "ordem": 200
