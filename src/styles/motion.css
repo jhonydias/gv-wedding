@@ -29,6 +29,23 @@
     translate: 0 0;
 }
 
+/*
+ * Fragmentos de texto (letra a letra / palavra a palavra), montados por src/lib/texto.ts.
+ * `inline-block` é necessário para o translate funcionar em cada pedaço.
+ */
+.frag {
+    display: inline-block;
+    opacity: 0;
+    translate: 0 0.5em;
+    transition:
+        opacity var(--dur-media) var(--ease-saida),
+        translate var(--dur-media) var(--ease-saida);
+}
+.frag.visivel {
+    opacity: 1;
+    translate: 0 0;
+}
+
 /* Cortina: revela de baixo para cima sem tocar no layout. */
 [data-revela='cortina'] {
     opacity: 1;
@@ -64,5 +81,12 @@
 
     [data-revela='cortina'] {
         clip-path: inset(0 0 0 0);
+    }
+
+    /* Fragmentos nunca chegam a ser criados com movimento reduzido (texto.ts sai antes),
+       mas se existirem de um render anterior, nascem visíveis. */
+    .frag {
+        opacity: 1;
+        translate: 0 0;
     }
 }

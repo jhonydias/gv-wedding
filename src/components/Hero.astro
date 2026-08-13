@@ -7,35 +7,40 @@ import foto from '../assets/fotos/gv-02-catedral-beijo.jpg';
 const { local } = EVENTO;
 ---
 
-<section class="hero inverso" aria-labelledby="hero-titulo">
-    <div class="hero__grade wrap">
-        <div class="hero__texto">
-            <h1 class="hero__nomes" id="hero-titulo">
-                <span class="hero__nome">Gisele</span>
-                <span class="sr-only"> e </span>
-                <span class="hero__amp" aria-hidden="true" set:html={amp} />
-                <span class="hero__nome">Victor</span>
-            </h1>
+<section class="hero" aria-labelledby="hero-titulo">
+    <div class="hero__fundo">
+        <Image
+            src={foto}
+            alt="Gisele e Victor se beijando numa rua do centro histórico, com a torre da catedral ao fundo"
+            widths={[640, 1024, 1600]}
+            width={1024}
+            sizes="(max-width: 48rem) 150vw, 100vw"
+            loading="eager"
+            fetchpriority="high"
+            quality={72}
+        />
+    </div>
 
-            <p class="hero__dados">
-                <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
-                <span class="hero__local">
-                    {local.nome} · {local.bairro}, {local.cidade}/{local.uf}
-                </span>
-            </p>
-        </div>
+    <div class="hero__conteudo wrap" data-hero-conteudo>
+        {/*
+            Revelação por LINHA, não por letra. Quebrar um didone de 8rem em um
+            inline-block por caractere destrói o kerning e o entrelinhamento — o efeito
+            some e o defeito aparece. Por palavra vale para títulos de texto corrido
+            (ver [data-palavras]), onde cada palavra mantém o kerning interno.
+        */}
+        <h1 class="hero__nomes" id="hero-titulo">
+            <span class="hero__nome" data-revela style="--atraso:80ms">Gisele</span>
+            <span class="sr-only"> e </span>
+            <span class="hero__amp" aria-hidden="true" data-revela style="--atraso:260ms" set:html={amp} />
+            <span class="hero__nome" data-revela style="--atraso:400ms">Victor</span>
+        </h1>
 
-        <div class="hero__foto">
-            <Image
-                src={foto}
-                alt="Gisele e Victor se beijando numa rua do centro histórico, com a torre da catedral ao fundo"
-                widths={[640, 1024, 1600]}
-                sizes="(max-width: 60rem) 100vw, 50vw"
-                loading="eager"
-                fetchpriority="high"
-                quality={72}
-            />
-        </div>
+        <p class="hero__dados" data-revela style="--atraso:640ms">
+            <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
+            <span class="hero__local">
+                {local.nome} · {local.bairro}, {local.cidade}/{local.uf}
+            </span>
+        </p>
     </div>
 
     <span class="hero__rolar" aria-hidden="true">role</span>
@@ -44,38 +49,67 @@ const { local } = EVENTO;
 <style>
     .hero {
         position: relative;
-        /* `svh`, não `vh`: em iOS a barra do Safari faz 100vh estourar a tela
-           e empurrar o conteúdo para fora. */
+        /* `svh`, não `vh`: em iOS a barra do Safari faz 100vh estourar a tela. */
         min-block-size: 100svh;
-        display: flex;
-        align-items: center;
-        overflow: hidden;
-    }
-
-    /* NÃO declarar `inline-size` aqui: o estilo escopado do Astro tem especificidade
-       maior que a classe .wrap e anularia a restrição de largura + as calhas. */
-    .hero__grade {
         display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        align-items: center;
-        padding-block: calc(var(--e-6) + var(--e-3)) var(--e-5);
+        place-items: center;
+        overflow: hidden;
+        color: var(--creme);
+        text-align: center;
     }
 
-    /* Desktop: texto nas colunas 1–7, foto nas 7–13. A coluna 7 é compartilhada:
-       é a sobreposição que dá o ar editorial. */
-    .hero__texto {
-        grid-area: 1 / 1 / 2 / 8;
-        z-index: 2;
+    /*
+     * A foto cobre a viewport inteira, em TODOS os tamanhos.
+     *
+     * O `sizes` pede 150vw abaixo de 48rem de propósito: a foto é 2:3 e a caixa no
+     * celular é bem mais estreita que isso, então o `object-fit: cover` amplia a imagem
+     * para cobrir a altura e recorta as laterais. Pedir só 100vw entregaria uma variante
+     * pequena demais e a foto sairia borrada.
+     */
+    .hero__fundo {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
     }
-    .hero__foto {
-        grid-area: 1 / 7 / 2 / 13;
+    .hero__fundo :global(img) {
+        inline-size: 100%;
+        block-size: 100%;
+        /* Nada de max-block-size aqui: era o que travava a foto em 544px e deixava
+           uma faixa de fundo exposta embaixo no mobile. */
+        object-fit: cover;
+        /* O casal está na metade de baixo do quadro original. Em tela larga o recorte é
+           vertical, então ancorar em 30% cortava os dois fora. 58% mantém os rostos. */
+        object-position: center 58%;
+    }
+
+    /* Escurecimento para o texto ter contraste sobre qualquer parte da foto.
+       Mais forte no topo (atrás da nav) e embaixo (atrás do "role"). */
+    .hero__fundo::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--oliva) 78%, transparent) 0%,
+            color-mix(in srgb, var(--oliva) 42%, transparent) 38%,
+            color-mix(in srgb, var(--oliva) 55%, transparent) 70%,
+            color-mix(in srgb, var(--oliva) 88%, transparent) 100%
+        );
+    }
+
+    .hero__conteudo {
+        position: relative;
         z-index: 1;
+        padding-block: var(--e-6);
+        /* Movido pelo JS conforme a rolagem (fade + deriva). */
+        will-change: opacity, transform;
     }
 
     .hero__nomes {
         font-size: var(--t-3xl);
-        line-height: 0.86;
+        line-height: 0.9;
         margin: 0;
+        text-shadow: 0 1px 24px color-mix(in srgb, var(--oliva) 60%, transparent);
     }
     .hero__nome {
         display: block;
@@ -83,12 +117,10 @@ const { local } = EVENTO;
 
     .hero__amp {
         display: block;
+        inline-size: clamp(3.5rem, 11vw, 8rem);
+        margin-inline: auto;
+        margin-block: -0.1em;
         color: var(--laranja);
-        inline-size: clamp(4rem, 12vw, 9rem);
-        /* Encaixa o & nos nomes, como no brandbook p.8. Sem a sobreposição negativa
-           viram três linhas soltas e a marca some. */
-        margin-block: -0.18em;
-        margin-inline-start: 0.35em;
     }
     .hero__amp :global(svg) {
         inline-size: 100%;
@@ -98,71 +130,30 @@ const { local } = EVENTO;
     .hero__dados {
         margin-block-start: var(--e-4);
         font-size: var(--t-sm);
-        letter-spacing: 0.12em;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--texto-suave);
+        color: color-mix(in srgb, var(--creme) 88%, transparent);
     }
     .hero__local {
         display: block;
-        margin-block-start: 0.4em;
-    }
-
-    /* A foto é 2:3. Numa coluna de ~620px isso daria 930px de altura e empurraria o hero
-       para além da viewport (medido: 1120px de hero contra 795px úteis). Limitar a altura
-       e recortar mantém a promessa de "o hero ocupa a tela". */
-    .hero__foto :global(img) {
-        inline-size: 100%;
-        block-size: auto;
-        max-block-size: min(70svh, 34rem);
-        aspect-ratio: 2 / 3;
-        object-fit: cover;
-        object-position: center 35%; /* preserva os rostos ao recortar */
+        margin-block-start: 0.5em;
     }
 
     .hero__rolar {
         position: absolute;
+        z-index: 1;
         inset-block-end: var(--e-3);
         inset-inline-start: 50%;
         translate: -50% 0;
         font-size: var(--t-xs);
         letter-spacing: 0.3em;
         text-transform: uppercase;
-        color: var(--texto-suave);
+        color: color-mix(in srgb, var(--creme) 70%, transparent);
     }
 
-    @media (max-width: 60rem) {
-        /* Mobile: foto de fundo com camada de escurecimento, tipografia por cima.
-           O contraste do texto foi medido sobre a foto COMPOSTA, não sobre o oliva puro. */
-        .hero__grade {
-            grid-template-columns: 1fr;
-            padding-block: calc(var(--e-6) + var(--e-4)) var(--e-6);
-        }
-        .hero__texto {
-            grid-area: 1 / 1;
-        }
-        .hero__foto {
-            grid-area: 1 / 1;
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-        }
-        .hero__foto :global(img) {
-            block-size: 100%;
-            aspect-ratio: auto;
-        }
-        .hero__foto::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                180deg,
-                color-mix(in srgb, var(--oliva) 72%, transparent) 0%,
-                color-mix(in srgb, var(--oliva) 58%, transparent) 45%,
-                color-mix(in srgb, var(--oliva) 88%, transparent) 100%
-            );
-        }
+    @media (max-width: 40rem) {
         .hero__dados {
-            color: var(--creme);
+            font-size: var(--t-xs);
         }
     }
 </style>

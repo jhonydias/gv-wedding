@@ -80,9 +80,12 @@ const ogImagem = new URL(rota('/og-image.png'), Astro.site);
         <script>
             import { revelar } from '../lib/revelar';
             import { nav } from '../lib/nav';
+            import { tipografiaAnimada, heroScroll } from '../lib/texto';
 
             nav();
             revelar();
+            tipografiaAnimada();
+            heroScroll();
         </script>
     </body>
 </html>
