@@ -116,6 +116,19 @@ O workflow já injeta.
 Sem a variável: `/confirmar` mostra um aviso no lugar do formulário, e `/presentes` renderiza
 tudo como disponível — o site não quebra.
 
+### Latência do Apps Script
+
+Medido contra o endpoint real, do browser:
+
+| | Tempo |
+|---|---|
+| Em regime (5 chamadas seguidas) | 1046–1576 ms, mediana **1256 ms** |
+| **Cold start** (primeira do dia / após ociosidade) | **7560 ms** |
+
+Por isso o timeout do `?acao=status` é de **8 s**, não 3. O fetch não bloqueia a renderização —
+a página já está completa quando ele sai —, então esperar mais não custa nada, e com 3 s o
+primeiro visitante do dia sempre cairia na degradação.
+
 ---
 
 ## 6. Ligar a campanha de e-mail

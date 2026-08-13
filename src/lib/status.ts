@@ -9,7 +9,19 @@
  * de rede.
  */
 
-const TIMEOUT_MS = 3000;
+/**
+ * 8 s, não 3 s.
+ *
+ * Medido contra o endpoint real: em regime a resposta vem em ~1.3 s (mediana de 5
+ * chamadas: 1046–1576 ms). Mas o Apps Script tem **cold start**, e a primeira chamada
+ * depois de um tempo ocioso levou **7.5 s** — ou seja, com 3 s o primeiro visitante do
+ * dia sempre cairia na degradação.
+ *
+ * Esperar mais não custa nada aqui: a página já renderizou completa e este fetch só
+ * sobrepõe a disponibilidade. O timeout existe para não pendurar a requisição para
+ * sempre, não para manter a página rápida.
+ */
+const TIMEOUT_MS = 8000;
 
 interface StatusPresente {
     disponivel: boolean;
