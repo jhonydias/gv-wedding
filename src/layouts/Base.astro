@@ -1,9 +1,6 @@
 ---
 /**
- * Layout base — task 02 §4 e §7.
- *
- * Nav e rodapé definitivos são da task 03. Aqui fica só o esqueleto:
- * <head>, skip-link, slot e o bootstrap do sistema de revelação.
+ * Layout base — task 02 §4 e §7, com a nav da task 03.
  */
 // Só o eixo de peso, normal (sem itálico). Cada @font-face traz unicode-range, então o
 // browser baixa apenas o subset latino — os demais ficam no dist mas nunca são transferidos.
@@ -13,15 +10,21 @@ import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/motion.css';
 
+import Nav from '../components/Nav.astro';
+import Rodape from '../components/Rodape.astro';
 import { EVENTO, dataPorExtenso } from '../data/event';
 import { rota } from '../lib/url';
 
 interface Props {
     titulo: string;
     descricao?: string;
+    /** Rota atual, sem base. Governa o aria-current da nav. */
+    atual: string;
+    /** Nav transparente sobre um hero escuro (só na home). */
+    heroEscuro?: boolean;
 }
 
-const { titulo, descricao } = Astro.props;
+const { titulo, descricao, atual, heroEscuro = false } = Astro.props;
 
 const descricaoPadrao =
     `${EVENTO.noiva} e ${EVENTO.noivo} se casam em ${dataPorExtenso()}, ` +
@@ -59,12 +62,19 @@ const ogImagem = new URL(rota('/og-image.png'), Astro.site);
     <body>
         <a class="pular" href="#conteudo">Pular para o conteúdo</a>
 
+        <Nav atual={atual} sobreEscuro={heroEscuro} />
+
         <main id="conteudo">
             <slot />
         </main>
 
+        <Rodape />
+
         <script>
             import { revelar } from '../lib/revelar';
+            import { nav } from '../lib/nav';
+
+            nav();
             revelar();
         </script>
     </body>

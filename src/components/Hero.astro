@@ -1,0 +1,168 @@
+---
+import { Image } from 'astro:assets';
+import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+import amp from '../assets/marca/e-comercial.svg?raw';
+import foto from '../assets/fotos/hero-catedral.jpg';
+
+const { local } = EVENTO;
+---
+
+<section class="hero inverso" aria-labelledby="hero-titulo">
+    <div class="hero__grade wrap">
+        <div class="hero__texto">
+            <h1 class="hero__nomes" id="hero-titulo">
+                <span class="hero__nome">Gisele</span>
+                <span class="sr-only"> e </span>
+                <span class="hero__amp" aria-hidden="true" set:html={amp} />
+                <span class="hero__nome">Victor</span>
+            </h1>
+
+            <p class="hero__dados">
+                <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
+                <span class="hero__local">
+                    {local.nome} · {local.bairro}, {local.cidade}/{local.uf}
+                </span>
+            </p>
+        </div>
+
+        <div class="hero__foto">
+            <Image
+                src={foto}
+                alt="Gisele e Victor se beijando numa rua do centro histórico, com a torre da catedral ao fundo"
+                widths={[640, 1024, 1600]}
+                sizes="(max-width: 60rem) 100vw, 50vw"
+                loading="eager"
+                fetchpriority="high"
+                quality={72}
+            />
+        </div>
+    </div>
+
+    <span class="hero__rolar" aria-hidden="true">role</span>
+</section>
+
+<style>
+    .hero {
+        position: relative;
+        /* `svh`, não `vh`: em iOS a barra do Safari faz 100vh estourar a tela
+           e empurrar o conteúdo para fora. */
+        min-block-size: 100svh;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    /* NÃO declarar `inline-size` aqui: o estilo escopado do Astro tem especificidade
+       maior que a classe .wrap e anularia a restrição de largura + as calhas. */
+    .hero__grade {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        align-items: center;
+        padding-block: calc(var(--e-6) + var(--e-3)) var(--e-5);
+    }
+
+    /* Desktop: texto nas colunas 1–7, foto nas 7–13. A coluna 7 é compartilhada:
+       é a sobreposição que dá o ar editorial. */
+    .hero__texto {
+        grid-area: 1 / 1 / 2 / 8;
+        z-index: 2;
+    }
+    .hero__foto {
+        grid-area: 1 / 7 / 2 / 13;
+        z-index: 1;
+    }
+
+    .hero__nomes {
+        font-size: var(--t-3xl);
+        line-height: 0.86;
+        margin: 0;
+    }
+    .hero__nome {
+        display: block;
+    }
+
+    .hero__amp {
+        display: block;
+        color: var(--laranja);
+        inline-size: clamp(4rem, 12vw, 9rem);
+        /* Encaixa o & nos nomes, como no brandbook p.8. Sem a sobreposição negativa
+           viram três linhas soltas e a marca some. */
+        margin-block: -0.18em;
+        margin-inline-start: 0.35em;
+    }
+    .hero__amp :global(svg) {
+        inline-size: 100%;
+        height: auto;
+    }
+
+    .hero__dados {
+        margin-block-start: var(--e-4);
+        font-size: var(--t-sm);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+    .hero__local {
+        display: block;
+        margin-block-start: 0.4em;
+    }
+
+    /* A foto é 2:3. Numa coluna de ~620px isso daria 930px de altura e empurraria o hero
+       para além da viewport (medido: 1120px de hero contra 795px úteis). Limitar a altura
+       e recortar mantém a promessa de "o hero ocupa a tela". */
+    .hero__foto :global(img) {
+        inline-size: 100%;
+        block-size: auto;
+        max-block-size: min(70svh, 34rem);
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+        object-position: center 35%; /* preserva os rostos ao recortar */
+    }
+
+    .hero__rolar {
+        position: absolute;
+        inset-block-end: var(--e-3);
+        inset-inline-start: 50%;
+        translate: -50% 0;
+        font-size: var(--t-xs);
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    @media (max-width: 60rem) {
+        /* Mobile: foto de fundo com camada de escurecimento, tipografia por cima.
+           O contraste do texto foi medido sobre a foto COMPOSTA, não sobre o oliva puro. */
+        .hero__grade {
+            grid-template-columns: 1fr;
+            padding-block: calc(var(--e-6) + var(--e-4)) var(--e-6);
+        }
+        .hero__texto {
+            grid-area: 1 / 1;
+        }
+        .hero__foto {
+            grid-area: 1 / 1;
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+        .hero__foto :global(img) {
+            block-size: 100%;
+            aspect-ratio: auto;
+        }
+        .hero__foto::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--oliva) 72%, transparent) 0%,
+                color-mix(in srgb, var(--oliva) 58%, transparent) 45%,
+                color-mix(in srgb, var(--oliva) 88%, transparent) 100%
+            );
+        }
+        .hero__dados {
+            color: var(--creme);
+        }
+    }
+</style>

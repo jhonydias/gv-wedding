@@ -1,0 +1,97 @@
+---
+import { dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+import { MENU } from '../data/nav';
+import { rota } from '../lib/url';
+
+const confirmar = MENU.find((m) => m.href === '/confirmar');
+const unidades = [
+    { u: 'dias', rotulo: 'dias' },
+    { u: 'horas', rotulo: 'horas' },
+    { u: 'min', rotulo: 'minutos' },
+    { u: 'seg', rotulo: 'segundos' },
+] as const;
+---
+
+<section class="contagem alt secao" aria-labelledby="contagem-titulo" data-contagem>
+    <div class="wrap">
+        <p class="contagem__rotulo" id="contagem-titulo" data-rotulo>Faltam</p>
+
+        <div class="contagem__grade">
+            {unidades.map(({ u, rotulo }) => (
+                <div class="contagem__cel">
+                    <span class="contagem__n tabular" data-u={u}>—</span>
+                    <span class="contagem__r">{rotulo}</span>
+                </div>
+            ))}
+        </div>
+
+        <p class="contagem__data">
+            <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
+        </p>
+
+        {confirmar?.pronto ? (
+            <a class="botao botao--primario" href={rota(confirmar.href)}>Confirmar presença</a>
+        ) : (
+            <p class="contagem__breve">A confirmação de presença abre em breve.</p>
+        )}
+
+        {/* Fora dos números que mudam a cada segundo: só anuncia mudança de dia. */}
+        <p data-vivo class="sr-only" aria-live="polite"></p>
+    </div>
+</section>
+
+<style>
+    .contagem {
+        text-align: center;
+    }
+
+    .contagem__rotulo {
+        font-size: var(--t-xs);
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .contagem__grade {
+        display: flex;
+        justify-content: center;
+        gap: clamp(var(--e-2), 4vw, var(--e-5));
+        margin-block: var(--e-3);
+    }
+
+    .contagem__cel {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        /* Largura reservada: a troca de 9 para 10 dias não pode reflowar a linha. */
+        min-inline-size: 3.5ch;
+    }
+
+    .contagem__n {
+        font-family: var(--fonte-display);
+        font-size: var(--t-2xl);
+        line-height: 1;
+        /* Sem tabular-nums os dígitos mudam de largura e o bloco treme a cada segundo. */
+        font-variant-numeric: tabular-nums;
+    }
+
+    .contagem__r {
+        margin-block-start: 0.4em;
+        font-size: var(--t-xs);
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .contagem__data {
+        margin-block-end: var(--e-3);
+        font-size: var(--t-sm);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .contagem__breve {
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+</style>

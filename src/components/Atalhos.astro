@@ -1,0 +1,150 @@
+---
+import { Image } from 'astro:assets';
+import { rota } from '../lib/url';
+import { MENU } from '../data/nav';
+
+import fHistoria from '../assets/fotos/card-historia.jpg';
+import fGaleria from '../assets/fotos/card-galeria.jpg';
+import fPresentes from '../assets/fotos/card-presentes.jpg';
+import fInformacoes from '../assets/fotos/card-informacoes.jpg';
+
+const CARDS = [
+    {
+        href: '/historia',
+        titulo: 'Nossa história',
+        apoio: 'De onde a gente veio até aqui',
+        foto: fHistoria,
+        alt: 'Gisele e Victor se beijando numa ruela estreita de pedra',
+    },
+    {
+        href: '/galeria',
+        titulo: 'Galeria',
+        apoio: 'As fotos do nosso ensaio',
+        foto: fGaleria,
+        alt: 'O casal dançando sob varais de luzes em uma rua antiga',
+    },
+    {
+        href: '/presentes',
+        titulo: 'Presentes',
+        apoio: 'Se você quiser nos presentear',
+        foto: fPresentes,
+        alt: 'Gisele e Victor rindo juntos, abraçados',
+    },
+    {
+        href: '/informacoes',
+        titulo: 'Informações',
+        apoio: 'Como chegar, traje e hospedagem',
+        foto: fInformacoes,
+        alt: 'O casal abraçado sob luzes penduradas ao entardecer',
+    },
+] as const;
+
+const pronto = (href: string): boolean => MENU.find((m) => m.href === href)?.pronto ?? false;
+---
+
+<section class="atalhos secao" aria-labelledby="atalhos-titulo">
+    <div class="wrap">
+        <h2 class="atalhos__titulo" id="atalhos-titulo">O grande dia</h2>
+
+        <ul class="atalhos__grade">
+            {CARDS.map((c, i) => (
+                <li
+                    class:list={['card', { 'card--breve': !pronto(c.href) }]}
+                    data-revela
+                    style={`--atraso:${i * 90}ms`}
+                >
+                    <div class="card__foto">
+                        <Image
+                            src={c.foto}
+                            alt={c.alt}
+                            widths={[400, 800]}
+                            sizes="(max-width: 40rem) 90vw, (max-width: 64rem) 45vw, 22vw"
+                            loading="lazy"
+                            quality={70}
+                        />
+                    </div>
+                    <h3 class="card__titulo">
+                        {pronto(c.href) ? (
+                            /* O link no título, com pseudo-elemento cobrindo o card: o leitor
+                               de tela anuncia um link com nome real, não uma div com onclick. */
+                            <a href={rota(c.href)}>{c.titulo}</a>
+                        ) : (
+                            <span>{c.titulo}</span>
+                        )}
+                    </h3>
+                    <p class="card__apoio">{pronto(c.href) ? c.apoio : 'Em breve'}</p>
+                </li>
+            ))}
+        </ul>
+    </div>
+</section>
+
+<style>
+    .atalhos__titulo {
+        margin-block-end: var(--e-4);
+        text-align: center;
+    }
+
+    .atalhos__grade {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+        gap: var(--e-3);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .card {
+        position: relative;
+    }
+
+    .card__foto {
+        overflow: hidden;
+        aspect-ratio: 4 / 5;
+        background: var(--areia);
+    }
+    .card__foto :global(img) {
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: cover;
+        /* Só transform: nada que recalcule layout. */
+        transition: scale var(--dur-media) var(--ease-saida);
+    }
+
+    .card__titulo {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-lg);
+    }
+    .card__titulo a {
+        color: var(--texto);
+        text-decoration: none;
+        transition: color var(--dur-rapida) var(--ease-saida);
+    }
+    .card__titulo a::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    .card__apoio {
+        margin-block-start: 0.2em;
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+
+    .card:hover .card__foto :global(img),
+    .card:focus-within .card__foto :global(img) {
+        scale: 1.03;
+    }
+    .card:hover .card__titulo a,
+    .card:focus-within .card__titulo a {
+        color: var(--laranja-texto);
+    }
+
+    .card--breve {
+        opacity: 0.55;
+    }
+    .card--breve .card__foto :global(img) {
+        filter: grayscale(0.5);
+    }
+</style>

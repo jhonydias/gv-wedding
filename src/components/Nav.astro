@@ -1,0 +1,262 @@
+---
+import { MENU } from '../data/nav';
+import { rota } from '../lib/url';
+import logo from '../assets/marca/logo-reduzido.svg?raw';
+
+interface Props {
+    /** Rota atual, sem base — ex.: '/' ou '/galeria'. Governa o aria-current. */
+    atual: string;
+    /** Nav transparente sobre o hero escuro (só na home). */
+    sobreEscuro?: boolean;
+}
+
+const { atual, sobreEscuro = false } = Astro.props;
+---
+
+<header class="nav" data-nav data-sobre-escuro={sobreEscuro ? '' : undefined}>
+    <div class="nav__barra wrap">
+        <a class="nav__logo" href={rota('/')} aria-label="Gisele e Victor — início">
+            <span set:html={logo} />
+        </a>
+
+        <nav class="nav__desktop" aria-label="Principal">
+            <ul class="nav__lista">
+                {MENU.map((item) => (
+                    <li>
+                        {item.pronto ? (
+                            <a
+                                class:list={['nav__link', { 'nav__link--destaque': item.destaque }]}
+                                href={rota(item.href)}
+                                aria-current={item.href === atual ? 'page' : undefined}
+                            >
+                                {item.rotulo}
+                            </a>
+                        ) : (
+                            <span class="nav__link nav__link--breve" aria-disabled="true">
+                                {item.rotulo}
+                                <span class="sr-only"> (em breve)</span>
+                            </span>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </nav>
+
+        <button
+            class="nav__hamburguer"
+            type="button"
+            data-menu-abre
+            aria-expanded="false"
+            aria-controls="menu-painel"
+        >
+            <span class="nav__traco" aria-hidden="true"></span>
+            <span class="nav__traco" aria-hidden="true"></span>
+            <span class="sr-only">Abrir menu</span>
+        </button>
+    </div>
+
+    <div class="nav__painel" id="menu-painel" data-menu-painel hidden>
+        <nav aria-label="Principal (mobile)">
+            <ul>
+                {MENU.map((item) => (
+                    <li>
+                        {item.pronto ? (
+                            <a
+                                href={rota(item.href)}
+                                aria-current={item.href === atual ? 'page' : undefined}
+                            >
+                                {item.rotulo}
+                            </a>
+                        ) : (
+                            <span class="nav__link--breve" aria-disabled="true">
+                                {item.rotulo}
+                                <span class="sr-only"> (em breve)</span>
+                            </span>
+                        )}
+                    </li>
+                ))}
+            </ul>
+        </nav>
+        <button class="nav__fecha" type="button" data-menu-fecha>Fechar</button>
+    </div>
+</header>
+
+<style>
+    .nav {
+        position: fixed;
+        inset-block-start: 0;
+        inline-size: 100%;
+        z-index: 100;
+        /* Nunca animar `height`: causa CLS. Só cor, blur e sombra. */
+        transition:
+            background-color var(--dur-media) var(--ease-saida),
+            backdrop-filter var(--dur-media) var(--ease-saida),
+            box-shadow var(--dur-media) var(--ease-saida);
+    }
+
+    .nav__barra {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--e-3);
+        padding-block: var(--e-2);
+    }
+
+    .nav[data-fixa] {
+        background: color-mix(in srgb, var(--creme) 82%, transparent);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 1px 0 color-mix(in srgb, var(--oliva) 14%, transparent);
+    }
+
+    /* Sobre o hero oliva, o logo e os links nascem em creme. */
+    .nav[data-sobre-escuro]:not([data-fixa]) {
+        --nav-tinta: var(--creme);
+    }
+    .nav:not([data-sobre-escuro]),
+    .nav[data-fixa] {
+        --nav-tinta: var(--oliva);
+    }
+
+    .nav__logo {
+        display: block;
+        inline-size: clamp(5rem, 9vw, 7rem);
+        flex-shrink: 0;
+    }
+    .nav__logo :global(svg) {
+        --logo-texto: var(--nav-tinta);
+        --logo-amp: var(--laranja);
+        inline-size: 100%;
+        height: auto;
+    }
+
+    .nav__lista {
+        display: flex;
+        align-items: center;
+        gap: clamp(var(--e-2), 2vw, var(--e-3));
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .nav__link {
+        display: inline-block;
+        padding-block: 0.6rem;
+        color: var(--nav-tinta);
+        font-size: var(--t-xs);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+    .nav__link:hover {
+        text-decoration: underline;
+        text-underline-offset: 0.4em;
+    }
+    .nav__link[aria-current='page'] {
+        text-decoration: underline;
+        text-underline-offset: 0.4em;
+        text-decoration-thickness: 2px;
+    }
+
+    /* Rota ainda não construída: legível, mas claramente não clicável. */
+    .nav__link--breve {
+        opacity: 0.45;
+        cursor: default;
+    }
+
+    .nav__link--destaque {
+        padding: 0.7rem var(--e-2);
+        background: var(--btn-bg);
+        color: var(--btn-texto);
+        border-radius: var(--raio);
+        font-weight: 600;
+    }
+    .nav__link--destaque:hover {
+        text-decoration: none;
+        background: color-mix(in srgb, var(--btn-bg) 86%, var(--tinta));
+    }
+
+    .nav__hamburguer {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        inline-size: 44px;
+        block-size: 44px;
+        padding: 0;
+        background: none;
+        border: 0;
+        cursor: pointer;
+    }
+    .nav__traco {
+        display: block;
+        block-size: 1.5px;
+        inline-size: 26px;
+        background: var(--nav-tinta);
+    }
+
+    .nav__painel {
+        position: fixed;
+        inset: 0;
+        z-index: 101;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: var(--e-3);
+        padding: var(--calha);
+        background: var(--oliva);
+        color: var(--creme);
+    }
+    .nav__painel[hidden] {
+        display: none;
+    }
+    .nav__painel ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--e-2);
+    }
+    .nav__painel a,
+    .nav__painel .nav__link--breve {
+        display: block;
+        min-block-size: 44px;
+        color: var(--creme);
+        font-family: var(--fonte-display);
+        font-size: var(--t-xl);
+        text-transform: uppercase;
+        text-decoration: none;
+    }
+    .nav__painel :global(:focus-visible) {
+        outline-color: var(--laranja);
+    }
+    .nav__fecha {
+        margin-block-start: var(--e-3);
+        min-block-size: 44px;
+        padding-inline: var(--e-2);
+        background: none;
+        border: 1px solid color-mix(in srgb, var(--creme) 40%, transparent);
+        border-radius: var(--raio);
+        color: var(--creme);
+        font-size: var(--t-xs);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+    }
+
+    @media (max-width: 60rem) {
+        .nav__desktop {
+            display: none;
+        }
+        .nav__hamburguer {
+            display: flex;
+        }
+    }
+    @media (min-width: 60.001rem) {
+        .nav__painel {
+            display: none;
+        }
+    }
+</style>

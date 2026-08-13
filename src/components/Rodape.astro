@@ -1,0 +1,45 @@
+---
+import { EVENTO, dataPorExtenso } from '../data/event';
+import amp from '../assets/marca/e-comercial.svg?raw';
+---
+
+<footer class="rodape inverso">
+    <div class="wrap rodape__interno">
+        <span class="rodape__amp" aria-hidden="true" set:html={amp} />
+        <p class="rodape__nomes">{EVENTO.noiva} &amp; {EVENTO.noivo}</p>
+        <p class="rodape__dados">
+            {dataPorExtenso()} · {EVENTO.local.nome} · {EVENTO.local.cidade}/{EVENTO.local.uf}
+        </p>
+    </div>
+</footer>
+
+<style>
+    .rodape {
+        padding-block: var(--e-5);
+        text-align: center;
+    }
+    .rodape__amp {
+        display: block;
+        inline-size: 2.5rem;
+        margin-inline: auto;
+        margin-block-end: var(--e-2);
+        color: var(--laranja);
+    }
+    .rodape__amp :global(svg) {
+        inline-size: 100%;
+        height: auto;
+    }
+    .rodape__nomes {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .rodape__dados {
+        margin-block-start: 0.5em;
+        font-size: var(--t-xs);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+</style>

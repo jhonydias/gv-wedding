@@ -1,0 +1,48 @@
+---
+/**
+ * Texto de boas-vindas dos noivos.
+ *
+ * TODO(conteúdo): Gisele e Victor precisam escrever. Enquanto `TEXTO` for null,
+ * a seção não é renderizada — a task 04 estabelece a regra de que nenhum texto
+ * de exemplo entra em produção, e ela vale aqui também.
+ */
+interface TextoConvite {
+    paragrafos: string[];
+    destaque: string;
+}
+
+// `as` em vez de anotação: com `const x: T | null = null` o TS estreita para `null`
+// e acusa erro no acesso às propriedades dentro do bloco condicional.
+const TEXTO = null as TextoConvite | null;
+---
+
+{
+    TEXTO && (
+        <section class="convite secao" aria-labelledby="convite-titulo">
+            <div class="wrap">
+                <h2 class="sr-only" id="convite-titulo">Convite</h2>
+                <div class="convite__texto texto-corpo" data-revela>
+                    {TEXTO.paragrafos.map((p) => (
+                        <p>{p}</p>
+                    ))}
+                    <p class="convite__destaque">{TEXTO.destaque}</p>
+                </div>
+            </div>
+        </section>
+    )
+}
+
+<style>
+    .convite__texto {
+        margin-inline: auto;
+        font-size: var(--t-lg);
+        text-align: center;
+    }
+    .convite__texto p + p {
+        margin-block-start: var(--e-2);
+    }
+    .convite__destaque {
+        color: var(--laranja-texto);
+        font-family: var(--fonte-display);
+    }
+</style>
