@@ -1,0 +1,279 @@
+---
+import Base from '../layouts/Base.astro';
+import ComoChegar from '../components/ComoChegar.astro';
+import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+import { googleMaps } from '../lib/mapas';
+
+const { local } = EVENTO;
+
+/**
+ * Rotas por origem. Estrutura copiada da referência, adaptada a Belém.
+ * TODO(factual): confirmar as origens prováveis e os tempos com os noivos.
+ */
+const ORIGENS = [
+    { de: 'Do aeroporto (Val-de-Cans)', obs: 'TODO: tempo estimado e referência de chegada' },
+    { de: 'De Nazaré, Batista Campos ou Reduto', obs: 'Bairros vizinhos ao Umarizal' },
+    { de: 'De Ananindeua ou Marituba', obs: 'TODO: tempo estimado' },
+    { de: 'Do centro ou da Cidade Velha', obs: 'TODO: tempo estimado' },
+] as const;
+
+/** Paleta sugerida para o traje, vinda dos tokens da marca. */
+const PALETA = [
+    { nome: 'Oliva', varCss: 'var(--oliva)' },
+    { nome: 'Sage', varCss: 'var(--sage)' },
+    { nome: 'Areia', varCss: 'var(--areia)' },
+    { nome: 'Terracota', varCss: 'var(--laranja)' },
+    { nome: 'Lilás', varCss: 'var(--lilas)' },
+] as const;
+---
+
+<Base
+    titulo="Informações · Gisele & Victor"
+    descricao="Local, como chegar, traje e hospedagem para o casamento de Gisele e Victor."
+    atual="/informacoes"
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1 data-palavras>Informações</h1>
+            <p class="cabeca__apoio">Tudo que você precisa saber sobre o grande dia</p>
+        </div>
+    </header>
+
+    {/*
+        Ordem deliberada: "Chamar um carro" vem ANTES do endereço.
+        A task 08 §1 listava o local primeiro, mas o critério de aceite pede o bloco de
+        corrida visível sem rolar em 360×640 — e com o cabeçalho mais o endereço na frente
+        ele caía a 1335px do topo. Os dois requisitos não cabem juntos; o critério ganha.
+        Faz sentido: o botão já leva o destino embutido, então o endereço logo abaixo basta.
+    */}
+    <ComoChegar />
+
+    <!-- Local -->
+    <section class="secao" aria-labelledby="local-titulo">
+        <div class="wrap">
+            <h2 id="local-titulo" data-palavras>O local</h2>
+            <p class="local__nome">{local.nome}</p>
+            <address class="local__endereco">
+                {local.logradouro}<br />
+                {local.bairro} · {local.cidade}/{local.uf}<br />
+                CEP {local.cep}
+            </address>
+            <p class="local__quando">
+                <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
+            </p>
+
+            {/*
+                Sem iframe do Google Maps: são ~300 KB de JS de terceiro, cookies e um bloco
+                que atrasa o LCP, para exibir um retângulo que quase ninguém arrasta.
+                TODO(asset): exportar uma imagem estática do mapa e versioná-la.
+            */}
+            <a class="mapa" href={googleMaps} rel="noopener">
+                <span class="mapa__selo">Abrir no mapa</span>
+            </a>
+
+            {
+                EVENTO.termino === null && (
+                    <p class="pendencia">TODO: horário de término, e se cerimônia e recepção
+                    são no mesmo espaço.</p>
+                )
+            }
+        </div>
+    </section>
+
+    <!-- Como chegar -->
+    <section class="secao" aria-labelledby="rotas-titulo">
+        <div class="wrap">
+            <h2 id="rotas-titulo" data-palavras>Como chegar</h2>
+            <p class="texto-corpo">
+                O espaço fica no próprio Umarizal, então boa parte dos convidados de Belém está a
+                poucos minutos.
+            </p>
+
+            <ol class="rotas">
+                {ORIGENS.map((o) => (
+                    <li>
+                        <h3>{o.de}</h3>
+                        <p>{o.obs}</p>
+                    </li>
+                ))}
+            </ol>
+
+            <h3 class="sub">Estacionamento</h3>
+            <p class="pendencia">
+                TODO: confirmar se há estacionamento no local, valet, ou se a orientação é usar
+                aplicativo. É a dúvida nº 1 de quem dirige.
+            </p>
+
+            <h3 class="sub">E se chover?</h3>
+            <p class="pendencia">
+                TODO: confirmar se o Espaço FRA é coberto ou tem área externa.
+                <strong>Não escrever este bloco antes da resposta</strong> — janeiro é o auge da
+                estação chuvosa em Belém, e afirmar que a festa é abrigada sem checar é o tipo de
+                erro que só aparece no dia, debaixo de chuva.
+            </p>
+        </div>
+    </section>
+
+    <!-- Traje -->
+    <section class="secao alt" aria-labelledby="traje-titulo">
+        <div class="wrap">
+            <h2 id="traje-titulo" data-palavras>Traje</h2>
+            <p class="texto-corpo">
+                Belém em janeiro, à noite, é quente e úmido — por volta de 30 °C, com umidade
+                alta. Aposte em tecidos leves: linho, algodão, seda. Nada de lã ou forro pesado.
+            </p>
+            <p class="pendencia">TODO: definir o traje (esporte fino? passeio completo?) e as
+            recomendações de "ele" e "ela" com os noivos. Sobre salto, confirmar antes o piso do
+            espaço.</p>
+
+            <h3 class="sub">Paleta sugerida</h3>
+            <p class="texto-corpo">Como inspiração, não como regra:</p>
+            <ul class="paleta">
+                {PALETA.map((c) => (
+                    <li class="paleta__item">
+                        <span class="paleta__chip" style={`background:${c.varCss}`} aria-hidden="true"></span>
+                        <span>{c.nome}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    </section>
+
+    <!-- 5. Hospedagem -->
+    <section class="secao" aria-labelledby="hosp-titulo">
+        <div class="wrap">
+            <h2 id="hosp-titulo" data-palavras>Hospedagem</h2>
+            <p class="texto-corpo">
+                O Umarizal concentra boa parte da rede hoteleira de Belém — e é o bairro do
+                próprio espaço, o que facilita bastante. Por proximidade: Umarizal, depois
+                Nazaré, Reduto e Batista Campos.
+            </p>
+            <p class="pendencia">TODO: os noivos precisam indicar hotéis, e se há bloqueio de
+            quartos ou código de desconto. Não listar hotel específico sem confirmação.</p>
+        </div>
+    </section>
+
+    <!-- 6. Dúvidas -->
+    <section class="secao alt" aria-labelledby="duvidas-titulo">
+        <div class="wrap duvidas">
+            <h2 id="duvidas-titulo" data-palavras>Ficou alguma dúvida?</h2>
+            <p class="pendencia">TODO: definir o número de WhatsApp para contato. Provavelmente
+            não o dos noivos no dia do evento.</p>
+        </div>
+    </section>
+</Base>
+
+<style>
+    /* Cabeçalho mais baixo aqui do que nas outras páginas: esta é a página que vai ser
+       aberta com pressa, no celular, e o bloco de corrida precisa caber acima da dobra. */
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 22svh;
+        padding-block: calc(var(--e-5) + var(--e-3)) var(--e-3);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    h2 {
+        margin-block-end: var(--e-2);
+    }
+    .sub {
+        margin-block: var(--e-4) var(--e-1);
+        font-size: var(--t-lg);
+        text-transform: none;
+    }
+
+    .local__nome {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+        text-transform: uppercase;
+    }
+    .local__endereco {
+        margin-block-start: 0.4em;
+        font-style: normal;
+        line-height: 1.7;
+    }
+    .local__quando {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .mapa {
+        display: grid;
+        place-items: center;
+        margin-block-start: var(--e-3);
+        min-block-size: 12rem;
+        background: var(--areia);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+        text-decoration: none;
+    }
+    .mapa__selo {
+        font-size: var(--t-xs);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--link);
+    }
+
+    .rotas {
+        margin-block-start: var(--e-3);
+        padding-inline-start: 1.2em;
+        display: grid;
+        gap: var(--e-2);
+    }
+    .rotas h3 {
+        font-size: var(--t-base);
+        text-transform: none;
+        font-family: var(--fonte-texto);
+        font-weight: 600;
+    }
+    .rotas p {
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+
+    .paleta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--e-2);
+        margin-block-start: var(--e-2);
+        list-style: none;
+        padding: 0;
+    }
+    .paleta__item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4em;
+        font-size: var(--t-xs);
+    }
+    /* Cor nunca é a única forma de comunicar: cada chip tem o nome ao lado. */
+    .paleta__chip {
+        inline-size: 3.5rem;
+        block-size: 3.5rem;
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+    }
+
+    .pendencia {
+        margin-block-start: var(--e-2);
+        padding: var(--e-2);
+        border-inline-start: 3px solid var(--laranja-texto);
+        background: color-mix(in srgb, var(--laranja) 10%, transparent);
+        font-size: var(--t-sm);
+        max-inline-size: var(--largura-texto);
+    }
+
+    .duvidas {
+        max-inline-size: var(--largura-texto);
+    }
+</style>

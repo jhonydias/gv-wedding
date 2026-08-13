@@ -201,6 +201,9 @@ a {
     inset-block-start: 0;
     inset-inline-start: 0;
     z-index: 999;
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px; /* alvo de toque mínimo, como qualquer outro link */
     padding: var(--e-1) var(--e-2);
     background: var(--oliva);
     color: var(--creme);

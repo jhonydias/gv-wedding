@@ -1,0 +1,89 @@
+---
+import { EVENTO } from '../data/event';
+import { uber, googleMaps, waze, appleMaps, temCoordenadas } from '../lib/mapas';
+
+const { local } = EVENTO;
+---
+
+<section class="corrida alt secao" aria-labelledby="corrida-titulo">
+    <div class="wrap corrida__caixa">
+        <h2 id="corrida-titulo" data-palavras>Chamar um carro</h2>
+        <p class="corrida__apoio">Destino já preenchido.</p>
+
+        {
+            !temCoordenadas && (
+                <p class="corrida__aviso" role="alert">
+                    <strong>Coordenadas ainda não definidas.</strong> Os links abaixo estão
+                    usando busca por endereço em texto. Preencha <code>lat</code>/<code>lng</code>{' '}
+                    em <code>src/data/event.ts</code> antes de publicar.
+                </p>
+            )
+        }
+
+        {/*
+            Sem target="_blank": o universal link precisa navegar na mesma aba para o
+            handoff ao app funcionar de forma confiável no iOS.
+        */}
+        <a
+            class="botao botao--primario corrida__botao"
+            href={uber}
+            rel="noopener"
+            aria-label={`Pedir corrida de Uber até o ${local.nome}`}
+        >
+            Pedir Uber
+        </a>
+
+        <p class="corrida__outros">
+            Abrir em:
+            <a href={googleMaps} rel="noopener">Google Maps</a>
+            <span aria-hidden="true">·</span>
+            <a href={waze} rel="noopener">Waze</a>
+            <span aria-hidden="true">·</span>
+            <a href={appleMaps} rel="noopener">Apple Maps</a>
+        </p>
+    </div>
+</section>
+
+<style>
+    .corrida {
+        text-align: center;
+    }
+    .corrida__caixa {
+        max-inline-size: var(--largura-texto);
+    }
+    .corrida__apoio {
+        margin-block: 0.4em var(--e-3);
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+    .corrida__aviso {
+        margin-block-end: var(--e-3);
+        padding: var(--e-2);
+        border: 1px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-xs);
+        text-align: start;
+    }
+    .corrida__botao {
+        /* Vai ser tocado com pressa, possivelmente dentro de um carro. */
+        min-block-size: 52px;
+        inline-size: 100%;
+        max-inline-size: 20rem;
+        font-size: var(--t-base);
+    }
+    .corrida__outros {
+        margin-block-start: var(--e-3);
+        font-size: var(--t-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em;
+        justify-content: center;
+        align-items: center;
+    }
+    .corrida__outros a {
+        min-block-size: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+</style>

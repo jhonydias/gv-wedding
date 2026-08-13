@@ -20,6 +20,6 @@ export const MENU: readonly ItemNav[] = [
     { rotulo: 'Nossa história', href: '/historia', pronto: false }, // task 04
     { rotulo: 'Galeria', href: '/galeria', pronto: true }, // task 05
     { rotulo: 'Presentes', href: '/presentes', pronto: true }, // task 07
-    { rotulo: 'Informações', href: '/informacoes', pronto: false }, // task 08
+    { rotulo: 'Informações', href: '/informacoes', pronto: true }, // task 08
     { rotulo: 'Confirmar presença', href: '/confirmar', pronto: true, destaque: true }, // task 06
 ] as const;
