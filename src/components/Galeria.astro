@@ -75,7 +75,8 @@ const itens = await Promise.all(
                                 width={800}
                                 widths={[400, 800]}
                                 sizes="(max-width: 30rem) 90vw, (max-width: 48rem) 45vw, (max-width: 72rem) 30vw, 300px"
-                                loading={i < 6 ? 'eager' : 'lazy'}
+                                loading={i < 3 ? 'eager' : 'lazy'}
+                                fetchpriority={i === 0 ? 'high' : undefined}
                                 decoding="async"
                                 quality={68}
                             />

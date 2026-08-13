@@ -3,13 +3,17 @@
     "version": "0.1.0",
     "private": true,
     "type": "module",
+    "engines": {
+        "node": ">=22.12.0"
+    },
     "description": "Site do casamento de Gisele Colares e Victor Santana — 31 de janeiro de 2027, Belém/PA",
     "scripts": {
         "dev": "astro dev",
         "build": "astro build",
         "preview": "astro preview",
         "check": "astro check && tsc --noEmit",
-        "auditar": "node scripts/auditar.mjs"
+        "auditar": "node scripts/auditar.mjs",
+        "lighthouse": "node scripts/lighthouse.mjs"
     },
     "dependencies": {
         "@fontsource-variable/bodoni-moda": "^5.2.8",
@@ -20,6 +24,7 @@
         "@astrojs/check": "^0.9.10",
         "@astrojs/sitemap": "^3.7.3",
         "@types/qrcode": "^1.5.6",
+        "lighthouse": "^13.4.1",
         "qrcode": "^1.5.4",
         "typescript": "^6.0.3"
     }

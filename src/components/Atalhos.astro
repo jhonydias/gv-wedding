@@ -141,10 +141,17 @@ const pronto = (href: string): boolean => MENU.find((m) => m.href === href)?.pro
         color: var(--laranja-texto);
     }
 
-    .card--breve {
-        opacity: 0.55;
-    }
+    /*
+     * NÃO usar `opacity` no card inteiro para sinalizar "em breve".
+     * A opacidade compõe com o fundo e derruba o contraste do texto: medido pelo
+     * Lighthouse em 2.72:1 no título e 1.98:1 no apoio — reprova feio.
+     * O sinal visual fica só na FOTO; o texto mantém contraste cheio.
+     */
     .card--breve .card__foto :global(img) {
-        filter: grayscale(0.5);
+        opacity: 0.5;
+        filter: grayscale(0.7);
+    }
+    .card--breve .card__titulo {
+        color: var(--texto-suave);
     }
 </style>

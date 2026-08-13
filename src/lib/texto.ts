@@ -22,24 +22,31 @@ function fragmentar(el: HTMLElement): HTMLElement[] {
     if (!texto.trim()) return [];
 
     el.setAttribute('aria-label', texto.trim());
-    el.textContent = '';
 
     const spans: HTMLElement[] = [];
+    const nos: Node[] = [];
 
     for (const parte of texto.split(/(\s+)/)) {
         if (parte === '') continue;
         if (/^\s+$/.test(parte)) {
             // O espaço fica como nó de texto para a quebra de linha continuar natural.
-            el.appendChild(document.createTextNode(parte));
+            nos.push(document.createTextNode(parte));
             continue;
         }
         const s = document.createElement('span');
         s.className = 'frag';
         s.textContent = parte;
         s.setAttribute('aria-hidden', 'true');
-        el.appendChild(s);
+        nos.push(s);
         spans.push(s);
     }
+
+    /*
+     * `replaceChildren` de uma vez, e NUNCA `textContent = ''` seguido de appends.
+     * Esvaziar primeiro colapsa a altura do elemento por um quadro e empurra a página
+     * inteira — o Lighthouse mediu CLS 0.142 em /historia por causa disso.
+     */
+    el.replaceChildren(...nos);
     return spans;
 }
 

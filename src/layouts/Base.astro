@@ -6,6 +6,26 @@
 // browser baixa apenas o subset latino — os demais ficam no dist mas nunca são transferidos.
 import '@fontsource-variable/bodoni-moda/wght.css';
 import '@fontsource-variable/inter/wght.css';
+
+/*
+ * Preload do subset latino das duas fontes.
+ *
+ * Sem isso, o `font-display: swap` renderiza primeiro na fonte de fallback e troca
+ * quando a webfont chega — e a troca muda as métricas do texto. O Lighthouse mediu
+ * CLS 0.142 em /historia por exatamente isso, apontando o
+ * `bodoni-moda-latin-wght-normal.woff2` como causa do deslocamento.
+ *
+ * As DUAS fontes, e o trade-off foi medido:
+ *
+ *   preload dos dois  ->  CLS 0.000 em todas as páginas  ·  LCP da home 2.78s
+ *   só o Bodoni       ->  CLS 0.095 em /historia         ·  LCP da home 1.97s
+ *
+ * O Inter é que zera o CLS restante (a troca da fonte de corpo). CLS tem teto rígido de
+ * 0.05 e texto pulando é visível para quem lê; 0.8s a mais em 4G simulado, não.
+ * ~72 KB somados, usados em toda página e acima da dobra.
+ */
+import bodoniLatin from '@fontsource-variable/bodoni-moda/files/bodoni-moda-latin-wght-normal.woff2?url';
+import interLatin from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import '../styles/tokens.css';
 import '../styles/base.css';
 import '../styles/motion.css';
@@ -45,6 +65,9 @@ const ogImagem = new URL(rota('/og-image.png'), Astro.site);
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <link rel="preload" as="font" type="font/woff2" href={bodoniLatin} crossorigin />
+        <link rel="preload" as="font" type="font/woff2" href={interLatin} crossorigin />
         <title>{titulo}</title>
         <meta name="description" content={descricao ?? descricaoPadrao} />
         <link rel="canonical" href={canonica.href} />

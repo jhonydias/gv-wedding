@@ -3,6 +3,17 @@ import { EVENTO } from '../data/event';
 import { uber, googleMaps, waze, appleMaps, temCoordenadas } from '../lib/mapas';
 
 const { local } = EVENTO;
+
+/**
+ * WCAG 2.5.3 (Label in Name): o nome acessível precisa CONTER o texto visível do botão,
+ * senão um comando de voz dizendo "Pedir Uber" não casa com ele. O Lighthouse pegou a
+ * versão anterior ("Pedir corrida de Uber até o…") como `label-content-name-mismatch`,
+ * porque ela não contém a string "Pedir Uber".
+ *
+ * Comentário aqui e não junto ao atributo: `/* *\/` dentro da lista de atributos é
+ * interpretado como atributo pelo parser do Astro.
+ */
+const rotuloUber = `Pedir Uber até o ${local.nome}`;
 ---
 
 <section class="corrida alt secao" aria-labelledby="corrida-titulo">
@@ -28,7 +39,7 @@ const { local } = EVENTO;
             class="botao botao--primario corrida__botao"
             href={uber}
             rel="noopener"
-            aria-label={`Pedir corrida de Uber até o ${local.nome}`}
+            aria-label={rotuloUber}
         >
             Pedir Uber
         </a>

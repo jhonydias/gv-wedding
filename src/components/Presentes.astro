@@ -99,9 +99,18 @@ const itens = configurado
     </button>
     <p class="pix__copiado" data-copiado aria-live="polite"></p>
 
+    {/*
+        `href` real já no HTML: o JS só o especializa com o nome do presente. Sem href
+        o Lighthouse acusa `crawlable-anchors` — e, mais importante, é uma âncora que
+        não funciona se o script falhar.
+    */}
     <p class="pix__whats">
-        Depois de pagar, se quiser, <a data-pix-whatsapp target="_blank" rel="noopener">avise a
-        gente no WhatsApp</a>.
+        Depois de pagar, se quiser, <a
+            data-pix-whatsapp
+            href="https://wa.me/"
+            target="_blank"
+            rel="noopener">avise a gente no WhatsApp</a
+        >.
     </p>
 </dialog>
 

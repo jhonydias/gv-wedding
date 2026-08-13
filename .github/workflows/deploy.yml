@@ -20,9 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Astro 7 exige Node >=22.12. Fixado em 24 para bater com o ambiente de
+      # desenvolvimento — divergência de versão entre local e CI é justamente o tipo de
+      # falha que só aparece depois do push.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - run: npm ci

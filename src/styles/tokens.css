@@ -32,7 +32,13 @@
     --bg-alt: var(--areia);
     --bg-inverso: var(--oliva);
     --texto: var(--oliva);
-    --texto-suave: color-mix(in srgb, var(--oliva) 72%, var(--creme));
+    /*
+     * 85%, não 72%. Com 72% (#797860) o Lighthouse reprovou em 3 páginas:
+     * 4.01:1 sobre creme e 3.40:1 sobre areia — abaixo dos 4.5:1 de AA para texto pequeno,
+     * e este token é usado justamente em legendas e textos de apoio.
+     * Com 85% (#626247): 5.56:1 sobre creme e 4.72:1 sobre areia.
+     */
+    --texto-suave: color-mix(in srgb, var(--oliva) 85%, var(--creme));
     --texto-inverso: var(--creme);
     --link: var(--laranja-texto);
     --acento: var(--laranja);
