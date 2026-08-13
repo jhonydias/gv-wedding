@@ -22,9 +22,15 @@ interface Props {
     atual: string;
     /** Nav transparente sobre um hero escuro (só na home). */
     heroEscuro?: boolean;
+    /**
+     * Marca a página como não indexável. Usado por páginas ainda sem conteúdo
+     * (ex.: /historia enquanto HISTORIA estiver vazio). A exclusão do sitemap
+     * propriamente dita é da task 09, que ainda não gera sitemap.
+     */
+    naoIndexar?: boolean;
 }
 
-const { titulo, descricao, atual, heroEscuro = false } = Astro.props;
+const { titulo, descricao, atual, heroEscuro = false, naoIndexar = false } = Astro.props;
 
 const descricaoPadrao =
     `${EVENTO.noiva} e ${EVENTO.noivo} se casam em ${dataPorExtenso()}, ` +
@@ -42,6 +48,7 @@ const ogImagem = new URL(rota('/og-image.png'), Astro.site);
         <title>{titulo}</title>
         <meta name="description" content={descricao ?? descricaoPadrao} />
         <link rel="canonical" href={canonica.href} />
+        {naoIndexar && <meta name="robots" content="noindex, follow" />}
 
         <link rel="icon" type="image/svg+xml" href={rota('/favicon.svg')} />
         <link rel="apple-touch-icon" href={rota('/apple-touch-icon.png')} />

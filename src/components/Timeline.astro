@@ -1,0 +1,121 @@
+---
+import Marco from './Marco.astro';
+import { HISTORIA } from '../data/historia';
+
+/**
+ * Resolve `marco.foto` (string) para o ImageMetadata que o <Image> exige.
+ * O Astro precisa de import estático para otimizar; `import.meta.glob` com `eager`
+ * dá isso mantendo o dado como texto em `historia.ts`.
+ */
+const arquivos = import.meta.glob<{ default: ImageMetadata }>(
+    '../assets/fotos/*.{jpg,jpeg,png,webp}',
+    { eager: true },
+);
+
+const imagemDe = (nome: string): ImageMetadata | null => {
+    const chave = Object.keys(arquivos).find((k) => k.endsWith(`/${nome}`));
+    return chave ? (arquivos[chave]?.default ?? null) : null;
+};
+
+const marcos = HISTORIA.map((m) => ({ marco: m, imagem: imagemDe(m.foto) }));
+const semImagem = marcos.filter((m) => m.imagem === null).map((m) => m.marco.foto);
+---
+
+{
+    semImagem.length > 0 && (
+        <p class="aviso" role="alert">
+            Fotos não encontradas em <code>src/assets/fotos/</code>: {semImagem.join(', ')}
+        </p>
+    )
+}
+
+<div class="timeline">
+    <div class="timeline__linha" aria-hidden="true"></div>
+    <ol class="timeline__lista">
+        {marcos.map(
+            ({ marco, imagem }, i) =>
+                imagem && <Marco marco={marco} indice={i} imagem={imagem} />,
+        )}
+    </ol>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+    }
+
+    /* A linha corre atrás dos marcos, no centro em desktop e à esquerda em mobile. */
+    /* NÃO usar `overflow: hidden` aqui. Isso torna a linha um scroll container, e o
+       `view()` do ::after passa a medir contra ELA em vez do documento — como o ::after
+       preenche 100% da linha, o progresso fica degenerado em 0 e a barra nunca preenche.
+       Também é desnecessário: o ::after só encolhe (scale de 0 a 1, origem no topo). */
+    .timeline__linha {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 50%;
+        inline-size: 1px;
+        background: var(--borda);
+    }
+
+    .timeline__linha::after {
+        content: '';
+        position: absolute;
+        inset-block-start: 0;
+        inline-size: 100%;
+        block-size: 100%;
+        background: var(--laranja);
+        transform-origin: top;
+        scale: 1 0;
+    }
+
+    /* Preenche conforme a rolagem, sem nenhum JS. Onde não houver suporte, a linha
+       fica estática em --borda: perda puramente decorativa, nada quebra.
+       Não vale 2 KB de JS e um listener de scroll por um enfeite. */
+    /* Só longhands aqui, de propósito.
+       Com o atalho `animation` + `animation-timeline` em declarações separadas, o
+       minificador (Lightning CSS) funde as duas em `animation: linear both preencher view()`.
+       `view()` não é componente válido do atalho, então a declaração inteira é descartada
+       e a linha nunca preenche — o `animation-name` computado vira `none`. */
+    @supports (animation-timeline: view()) {
+        .timeline__linha::after {
+            animation-name: preencher;
+            animation-timing-function: linear;
+            animation-fill-mode: both;
+            animation-timeline: view();
+            animation-range: cover 10% cover 90%;
+        }
+    }
+
+    @keyframes preencher {
+        to {
+            scale: 1 1;
+        }
+    }
+
+    .timeline__lista {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .aviso {
+        padding: var(--e-2);
+        border: 1px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+    }
+
+    @media (max-width: 48rem) {
+        .timeline__linha {
+            inset-inline-start: 0;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .timeline__linha::after {
+            animation: none;
+            scale: 1 1;
+        }
+    }
+</style>

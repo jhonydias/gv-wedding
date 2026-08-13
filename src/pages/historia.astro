@@ -1,0 +1,116 @@
+---
+import Base from '../layouts/Base.astro';
+import Timeline from '../components/Timeline.astro';
+import { HISTORIA } from '../data/historia';
+import { EVENTO, dataPorExtenso } from '../data/event';
+import { MENU } from '../data/nav';
+import { rota } from '../lib/url';
+
+const vazio = HISTORIA.length === 0;
+const confirmar = MENU.find((m) => m.href === '/confirmar');
+---
+
+<Base
+    titulo="Nossa história · Gisele & Victor"
+    descricao="A história de Gisele e Victor, do começo até o casamento."
+    atual="/historia"
+    naoIndexar={vazio}
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1>Nossa história</h1>
+            <p class="cabeca__apoio">De onde a gente veio até aqui</p>
+        </div>
+    </header>
+
+    <section class="secao">
+        <div class="wrap">
+            {
+                vazio ? (
+                    <div class="pendente">
+                        <h2>Conteúdo pendente</h2>
+                        <p class="texto-corpo">
+                            A timeline está construída e aguarda o texto de Gisele e Victor.
+                            Preencha <code>src/data/historia.ts</code> e vire a flag
+                            <code>pronto</code> de <code>/historia</code> em{' '}
+                            <code>src/data/nav.ts</code>.
+                        </p>
+                        <p class="texto-corpo">
+                            Enquanto estiver vazia, esta página fica fora do menu e do sitemap —
+                            nenhum texto de exemplo vai para produção.
+                        </p>
+                    </div>
+                ) : (
+                    <Timeline />
+                )
+            }
+        </div>
+    </section>
+
+    {
+        !vazio && (
+            <section class="fecho alt secao">
+                <div class="wrap">
+                    <p class="fecho__data">E agora, {dataPorExtenso()}.</p>
+                    <p class="fecho__local">
+                        {EVENTO.local.nome} · {EVENTO.local.bairro}, {EVENTO.local.cidade}/
+                        {EVENTO.local.uf}
+                    </p>
+                    {confirmar?.pronto && (
+                        <a class="botao botao--primario" href={rota(confirmar.href)}>
+                            Confirmar presença
+                        </a>
+                    )}
+                </div>
+            </section>
+        )
+    }
+</Base>
+
+<style>
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 40svh;
+        padding-block: calc(var(--e-6) + var(--e-4)) var(--e-4);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .pendente {
+        max-inline-size: var(--largura-texto);
+        margin-inline: auto;
+        text-align: center;
+    }
+    .pendente h2 {
+        margin-block-end: var(--e-2);
+    }
+    .pendente p + p {
+        margin-block-start: var(--e-2);
+    }
+    .pendente :global(code) {
+        font-size: 0.9em;
+        color: var(--laranja-texto);
+    }
+
+    .fecho {
+        text-align: center;
+    }
+    .fecho__data {
+        font-family: var(--fonte-display);
+        font-size: var(--t-xl);
+        text-transform: uppercase;
+    }
+    .fecho__local {
+        margin-block: var(--e-2) var(--e-3);
+        font-size: var(--t-sm);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+</style>

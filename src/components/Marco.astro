@@ -1,0 +1,113 @@
+---
+import { Image } from 'astro:assets';
+import type { Marco } from '../data/historia';
+
+interface Props {
+    marco: Marco;
+    indice: number;
+    /** Mapa de imagens resolvidas pelo pai — o Astro precisa de import estático. */
+    imagem: ImageMetadata;
+}
+
+const { marco, indice, imagem } = Astro.props;
+const numeral = String(indice + 1).padStart(2, '0');
+---
+
+<li class="marco" data-revela style={`--atraso:${Math.min(indice, 4) * 90}ms`}>
+    <div class="marco__texto">
+        <div class="marco__cabeca">
+            {/* Marca-d'água tipográfica. O leitor de tela não ganha nada ouvindo "zero um". */}
+            <span class="marco__n" aria-hidden="true">{numeral}</span>
+            <div class="marco__titulos">
+                <p class="marco__data">
+                    <time datetime={marco.data}>{marco.dataExibida}</time>
+                </p>
+                <h2 class="marco__titulo">{marco.titulo}</h2>
+            </div>
+        </div>
+        <p class="marco__corpo texto-corpo">{marco.texto}</p>
+    </div>
+
+    <div class="marco__foto">
+        <Image
+            src={imagem}
+            alt={marco.alt}
+            widths={[400, 900]}
+            sizes="(max-width: 48rem) 90vw, 40vw"
+            loading="lazy"
+            quality={72}
+            data-revela="cortina"
+        />
+    </div>
+</li>
+
+<style>
+    .marco {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--e-5);
+        align-items: center;
+        padding-block: var(--e-5);
+    }
+
+    /* Alterna o lado: par tem a foto à esquerda. */
+    .marco:nth-child(even) > .marco__foto {
+        order: -1;
+    }
+
+    .marco__cabeca {
+        display: grid;
+    }
+
+    .marco__n {
+        grid-area: 1 / 1;
+        font-family: var(--fonte-display);
+        font-size: clamp(5rem, 14vw, 11rem);
+        line-height: 1;
+        color: var(--areia);
+        user-select: none;
+        translate: -0.08em -0.22em;
+    }
+
+    .marco__titulos {
+        grid-area: 1 / 1;
+        align-self: end;
+    }
+
+    .marco__data {
+        font-size: var(--t-xs);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .marco__titulo {
+        font-size: var(--t-xl);
+        margin-block-start: 0.15em;
+    }
+
+    .marco__corpo {
+        margin-block-start: var(--e-2);
+    }
+
+    .marco__foto :global(img) {
+        inline-size: 100%;
+        block-size: auto;
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+    }
+
+    @media (max-width: 48rem) {
+        /* Coluna única com a foto sempre acima. Alternar lado em tela estreita
+           só produz zigue-zague ilegível. */
+        .marco {
+            grid-template-columns: 1fr;
+            gap: var(--e-3);
+            padding-block: var(--e-4);
+        }
+        .marco:nth-child(even) > .marco__foto,
+        .marco__foto {
+            order: -1;
+        }
+    }
+</style>
