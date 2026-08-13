@@ -14,7 +14,8 @@
         "check": "astro check && tsc --noEmit",
         "auditar": "node tools/auditar.mjs",
         "lighthouse": "node tools/lighthouse.mjs",
-        "catalogo": "node tools/catalogo.mjs"
+        "catalogo": "node tools/catalogo.mjs && node tools/imagens.mjs",
+        "imagens": "node tools/imagens.mjs"
     },
     "dependencies": {
         "@fontsource-variable/bodoni-moda": "^5.2.8",

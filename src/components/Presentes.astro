@@ -1,9 +1,29 @@
 ---
 import QRCode from 'qrcode';
+import { Image } from 'astro:assets';
 import { PRESENTES, FAIXAS, PIX, emReais } from '../data/presentes';
 import { brCode, txidDe } from '../lib/pix';
+import amp from '../assets/marca/e-comercial.svg?raw';
+import manifesto from '../data/imagens.json';
 
 const configurado = PIX.chave.length > 0 && PIX.nome.length > 0;
+
+/**
+ * Imagens baixadas por `node tools/imagens.mjs`. O manifesto mapeia slug → arquivo
+ * local; slug ausente significa que não havia URL ou o download falhou, e o card cai
+ * para o placeholder da marca — nunca uma <img> quebrada.
+ */
+const arquivos = import.meta.glob<{ default: ImageMetadata }>(
+    '../assets/fotos/presentes/*.{jpg,jpeg,png,webp,gif}',
+    { eager: true },
+);
+
+const imagemDe = (slug: string): ImageMetadata | null => {
+    const nome = (manifesto as Record<string, string>)[slug];
+    if (!nome) return null;
+    const chave = Object.keys(arquivos).find((k) => k.endsWith(`/${nome}`));
+    return chave ? (arquivos[chave]?.default ?? null) : null;
+};
 
 /**
  * QR gerado NO BUILD, como SVG inline.
@@ -65,6 +85,22 @@ const itens = configurado
                             data-revela
                             style={`--atraso:${Math.min(i, 4) * 70}ms`}
                         >
+                            <div class="presente__foto">
+                                {imagemDe(p.slug) ? (
+                                    <Image
+                                        src={imagemDe(p.slug)!}
+                                        alt={p.nome}
+                                        width={400}
+                                        widths={[200, 400]}
+                                        sizes="(max-width: 40rem) 45vw, 200px"
+                                        loading="lazy"
+                                        decoding="async"
+                                        quality={70}
+                                    />
+                                ) : (
+                                    <span class="presente__marca" aria-hidden="true" set:html={amp} />
+                                )}
+                            </div>
                             <h3 class="presente__nome">{p.nome}</h3>
                             {p.descricao && <p class="presente__desc">{p.descricao}</p>}
                             <p class="presente__valor tabular">{emReais(p.valor)}</p>
@@ -159,6 +195,33 @@ const itens = configurado
         padding: var(--e-3);
         background: var(--bg-alt);
         border-radius: var(--raio);
+    }
+
+    .presente__foto {
+        display: grid;
+        place-items: center;
+        aspect-ratio: 4 / 3;
+        margin-block-end: var(--e-2);
+        overflow: hidden;
+        background: color-mix(in srgb, var(--creme) 70%, var(--areia));
+        border-radius: var(--raio);
+    }
+    .presente__foto :global(img) {
+        inline-size: 100%;
+        block-size: 100%;
+        /* `contain`: são fotos de produto com fundo branco. `cover` cortaria o objeto. */
+        object-fit: contain;
+    }
+
+    /* Placeholder da marca: sem URL na planilha, ou download que falhou. */
+    .presente__marca {
+        display: block;
+        inline-size: 2.5rem;
+        color: color-mix(in srgb, var(--laranja) 55%, transparent);
+    }
+    .presente__marca :global(svg) {
+        inline-size: 100%;
+        height: auto;
     }
     .presente__nome {
         font-size: var(--t-lg);

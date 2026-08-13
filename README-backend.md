@@ -172,9 +172,31 @@ O catálogo **não** é buscado durante o `astro build`. Ele é congelado em
 `src/data/catalogo.json`, que é **versionado**:
 
 ```
-npm run catalogo     # lê ?acao=catalogo e regrava o JSON
-git add src/data/catalogo.json && git commit
+npm run catalogo     # lê ?acao=catalogo, regrava o JSON e baixa as imagens
+git add src/data/catalogo.json src/data/imagens.json src/assets/fotos/presentes
+git commit
 ```
+
+O comando roda duas etapas: `tools/catalogo.mjs` (dados) e `tools/imagens.mjs` (imagens).
+Para baixar só as imagens, `npm run imagens`.
+
+### As imagens são baixadas, não linkadas
+
+A coluna `imagem` da planilha é a **origem**, não o destino. As URLs apontam para lojas
+(Amazon, Camicado, Tok&Stok…), e isso quebra sozinho: os links expiram, e a task 02 proíbe
+domínio externo no caminho crítico. Foi exatamente o que aconteceu na planilha herdada.
+
+`tools/imagens.mjs` baixa cada URL **uma vez** — nomeando o arquivo pelo hash da URL, então
+20 presentes apontando para a mesma foto geram **um** arquivo —, grava em
+`src/assets/fotos/presentes/` e o `<Image>` otimiza no build. Arquivo que nenhum presente
+referencia mais é removido.
+
+**Download que falha não vira `<img>` quebrada:** o presente cai para um placeholder da marca
+(o "&" em laranja) e o comando avisa quais falharam e por quê. É aviso, não erro — um link
+quebrado na planilha não pode travar o deploy.
+
+Trocar a URL na planilha gera um arquivo novo, porque o nome vem do hash — não há risco de
+servir a imagem antiga.
 
 Por quê: o build não pode depender de rede. Se a planilha estiver fora do ar, ou o CI não tiver
 saída para a internet, o deploy tem que continuar funcionando com o último catálogo bom.
