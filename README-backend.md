@@ -166,9 +166,38 @@ e só então mude.
 
 ## 7. Operação no dia a dia
 
-**Cadastrar presentes:** adicione linhas em `Presentes`. `id` é um slug estável
-(`jogo-de-jantar`) — ele vira o `txid` do Pix e aparece no extrato, então **não use UUID**.
-`cotas = 1` para item único; vazio para ilimitado (vaquinhas).
+### Congelar o catálogo — `npm run catalogo`
+
+O catálogo **não** é buscado durante o `astro build`. Ele é congelado em
+`src/data/catalogo.json`, que é **versionado**:
+
+```
+npm run catalogo     # lê ?acao=catalogo e regrava o JSON
+git add src/data/catalogo.json && git commit
+```
+
+Por quê: o build não pode depender de rede. Se a planilha estiver fora do ar, ou o CI não tiver
+saída para a internet, o deploy tem que continuar funcionando com o último catálogo bom.
+
+O script valida item a item (id, nome, valor, faixa conhecida) e **descarta linha torta** com
+aviso — uma célula errada na planilha não vira card quebrado. Id duplicado aborta.
+
+**Rode este comando toda vez que mexer na aba `Presentes`.** Sem isso, o site continua mostrando
+o catálogo anterior.
+
+### Popular com dados de teste
+
+No editor do Apps Script há **`semearPresentes()`**: insere 20 presentes fake cobrindo as quatro
+faixas. É idempotente — rodar duas vezes não duplica. Para remover, **`limparPresentesFake()`**,
+que apaga só o que ela inseriu.
+
+Depois de semear, rode `npm run catalogo` para o site enxergar.
+
+### Cadastrar presentes de verdade
+
+Adicione linhas em `Presentes`. `id` é um slug estável (`jogo-de-jantar`) — ele vira o `txid` do
+Pix e **aparece no extrato**, então **não use UUID**. `cotas = 1` para item único; vazio para
+ilimitado (vaquinhas). Depois, `npm run catalogo`.
 
 **Confirmar um pagamento:** o Pix é estático, ninguém avisa que o dinheiro caiu. Ao ver no
 extrato, mude o `status` da linha em `Pagamentos` de `pendente` para `confirmado`. O presente sai
@@ -198,9 +227,14 @@ A URL continua a mesma.
 
 ## 9. Pendências
 
-- [ ] Apagar dados herdados e **restringir o compartilhamento** da planilha
+- [x] ~~Apagar dados herdados~~ — feito, a planilha está limpa com as 5 abas
+- [ ] **Restringir o compartilhamento** da planilha
 - [ ] Preencher `email_noivos` e `whatsapp` na `Config`
-- [ ] Cadastrar os presentes reais
+- [ ] Rodar `semearPresentes()` e depois `npm run catalogo`
+- [ ] **Substituir a chave Pix de teste pela real** — o `.env` tem uma chave
+      `00000000-0000-4000-8000-000000000000`, que **não recebe dinheiro**
+- [ ] Cadastrar os presentes reais (curadoria dos noivos)
+- [ ] Criar o secret `PUBLIC_BACKEND_URL` no GitHub
 - [ ] Definir `rsvp_ate`
 - [ ] Rodar a campanha em simulação e conferir o `Log`
 - [ ] Autorização dos noivos antes de `modo_simulacao = FALSE`

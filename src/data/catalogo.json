@@ -1,0 +1,202 @@
+[
+  {
+    "id": "jogo-de-tacas",
+    "nome": "Jogo de taças",
+    "valor": 90,
+    "faixa": "lembranca",
+    "imagem": "",
+    "descricao": "Seis taças de cristal",
+    "cotas": 1,
+    "ordem": 10
+  },
+  {
+    "id": "toalhas",
+    "nome": "Jogo de toalhas",
+    "valor": 120,
+    "faixa": "lembranca",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 20
+  },
+  {
+    "id": "vela-aromatica",
+    "nome": "Vela aromática",
+    "valor": 95,
+    "faixa": "lembranca",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 3,
+    "ordem": 30
+  },
+  {
+    "id": "tabua-de-servir",
+    "nome": "Tábua de servir",
+    "valor": 140,
+    "faixa": "lembranca",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 40
+  },
+  {
+    "id": "jogo-de-jantar",
+    "nome": "Jogo de jantar",
+    "valor": 320,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "Para as visitas de domingo",
+    "cotas": 1,
+    "ordem": 50
+  },
+  {
+    "id": "jogo-de-cama",
+    "nome": "Jogo de cama",
+    "valor": 280,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 60
+  },
+  {
+    "id": "liquidificador",
+    "nome": "Liquidificador",
+    "valor": 250,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 70
+  },
+  {
+    "id": "air-fryer",
+    "nome": "Air fryer",
+    "valor": 450,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 80
+  },
+  {
+    "id": "micro-ondas",
+    "nome": "Micro-ondas",
+    "valor": 700,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 90
+  },
+  {
+    "id": "aspirador",
+    "nome": "Aspirador",
+    "valor": 600,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 100
+  },
+  {
+    "id": "jogo-de-panelas",
+    "nome": "Jogo de panelas",
+    "valor": 520,
+    "faixa": "casa",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 110
+  },
+  {
+    "id": "geladeira",
+    "nome": "Geladeira",
+    "valor": 2500,
+    "faixa": "grande",
+    "imagem": "",
+    "descricao": "Cota única — a maior de todas",
+    "cotas": 1,
+    "ordem": 120
+  },
+  {
+    "id": "maquina-de-lavar",
+    "nome": "Máquina de lavar",
+    "valor": 2200,
+    "faixa": "grande",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 130
+  },
+  {
+    "id": "sofa",
+    "nome": "Sofá",
+    "valor": 1800,
+    "faixa": "grande",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 140
+  },
+  {
+    "id": "colchao",
+    "nome": "Colchão",
+    "valor": 1500,
+    "faixa": "grande",
+    "imagem": "",
+    "descricao": "",
+    "cotas": 1,
+    "ordem": 150
+  },
+  {
+    "id": "passagem",
+    "nome": "Cota da passagem",
+    "valor": 500,
+    "faixa": "luademel",
+    "imagem": "",
+    "descricao": "",
+    "cotas": null,
+    "ordem": 160
+  },
+  {
+    "id": "hospedagem",
+    "nome": "Cota da hospedagem",
+    "valor": 800,
+    "faixa": "luademel",
+    "imagem": "",
+    "descricao": "",
+    "cotas": null,
+    "ordem": 170
+  },
+  {
+    "id": "passeio",
+    "nome": "Um passeio a dois",
+    "valor": 300,
+    "faixa": "luademel",
+    "imagem": "",
+    "descricao": "",
+    "cotas": null,
+    "ordem": 180
+  },
+  {
+    "id": "jantar-especial",
+    "nome": "Um jantar especial",
+    "valor": 400,
+    "faixa": "luademel",
+    "imagem": "",
+    "descricao": "",
+    "cotas": null,
+    "ordem": 190
+  },
+  {
+    "id": "lua-de-mel-livre",
+    "nome": "Cota livre da lua de mel",
+    "valor": 200,
+    "faixa": "luademel",
+    "imagem": "",
+    "descricao": "Qualquer valor ajuda",
+    "cotas": null,
+    "ordem": 200
+  }
+]

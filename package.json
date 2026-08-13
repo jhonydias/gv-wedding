@@ -13,7 +13,8 @@
         "preview": "astro preview",
         "check": "astro check && tsc --noEmit",
         "auditar": "node tools/auditar.mjs",
-        "lighthouse": "node tools/lighthouse.mjs"
+        "lighthouse": "node tools/lighthouse.mjs",
+        "catalogo": "node tools/catalogo.mjs"
     },
     "dependencies": {
         "@fontsource-variable/bodoni-moda": "^5.2.8",

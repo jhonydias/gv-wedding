@@ -646,6 +646,78 @@ function json_(obj) {
         .setMimeType(ContentService.MimeType.JSON);
 }
 
+// ============================================================ dados de teste
+
+/**
+ * Popula a aba `Presentes` com itens FAKE, para exercitar o site ponta a ponta.
+ *
+ * Rode no editor: escolha `semearPresentes` → ▶ Executar.
+ *
+ * Idempotente: só insere id que ainda não existe, então rodar duas vezes não duplica.
+ * Para limpar depois, use `limparPresentesFake()`.
+ *
+ * ⚠️ São dados de teste. Substitua pela curadoria real antes de publicar — os nomes e
+ * valores abaixo são plausíveis, mas não foram escolhidos por Gisele e Victor.
+ */
+function semearPresentes() {
+    const FAKE = [
+        // id, nome, valor, faixa, imagem, descricao, ativo, cotas, ordem
+        ['jogo-de-tacas', 'Jogo de taças', 90, 'lembranca', '', 'Seis taças de cristal', true, 1, 10],
+        ['toalhas', 'Jogo de toalhas', 120, 'lembranca', '', '', true, 1, 20],
+        ['vela-aromatica', 'Vela aromática', 95, 'lembranca', '', '', true, 3, 30],
+        ['tabua-de-servir', 'Tábua de servir', 140, 'lembranca', '', '', true, 1, 40],
+        ['jogo-de-jantar', 'Jogo de jantar', 320, 'casa', '', 'Para as visitas de domingo', true, 1, 50],
+        ['jogo-de-cama', 'Jogo de cama', 280, 'casa', '', '', true, 1, 60],
+        ['liquidificador', 'Liquidificador', 250, 'casa', '', '', true, 1, 70],
+        ['air-fryer', 'Air fryer', 450, 'casa', '', '', true, 1, 80],
+        ['micro-ondas', 'Micro-ondas', 700, 'casa', '', '', true, 1, 90],
+        ['aspirador', 'Aspirador', 600, 'casa', '', '', true, 1, 100],
+        ['jogo-de-panelas', 'Jogo de panelas', 520, 'casa', '', '', true, 1, 110],
+        ['geladeira', 'Geladeira', 2500, 'grande', '', 'Cota única — a maior de todas', true, 1, 120],
+        ['maquina-de-lavar', 'Máquina de lavar', 2200, 'grande', '', '', true, 1, 130],
+        ['sofa', 'Sofá', 1800, 'grande', '', '', true, 1, 140],
+        ['colchao', 'Colchão', 1500, 'grande', '', '', true, 1, 150],
+        ['passagem', 'Cota da passagem', 500, 'luademel', '', '', true, '', 160],
+        ['hospedagem', 'Cota da hospedagem', 800, 'luademel', '', '', true, '', 170],
+        ['passeio', 'Um passeio a dois', 300, 'luademel', '', '', true, '', 180],
+        ['jantar-especial', 'Um jantar especial', 400, 'luademel', '', '', true, '', 190],
+        ['lua-de-mel-livre', 'Cota livre da lua de mel', 200, 'luademel', '', 'Qualquer valor ajuda', true, '', 200],
+    ];
+
+    const aba = aba_(ABAS.PRESENTES);
+    const existentes = {};
+    lerAba_(ABAS.PRESENTES).forEach(function (p) { existentes[String(p.id).trim()] = true; });
+
+    const novos = FAKE.filter(function (l) { return !existentes[l[0]]; });
+    if (novos.length) {
+        aba.getRange(aba.getLastRow() + 1, 1, novos.length, novos[0].length).setValues(novos);
+    }
+
+    CacheService.getScriptCache().removeAll(['catalogo', 'status']);
+    log_('info', 'semearPresentes', novos.length + ' inseridos, ' + (FAKE.length - novos.length) + ' já existiam');
+    return novos.length + ' presentes inseridos';
+}
+
+/** Remove só as linhas semeadas por `semearPresentes()`. Não toca em nada mais. */
+function limparPresentesFake() {
+    const ids = [
+        'jogo-de-tacas', 'toalhas', 'vela-aromatica', 'tabua-de-servir', 'jogo-de-jantar',
+        'jogo-de-cama', 'liquidificador', 'air-fryer', 'micro-ondas', 'aspirador',
+        'jogo-de-panelas', 'geladeira', 'maquina-de-lavar', 'sofa', 'colchao',
+        'passagem', 'hospedagem', 'passeio', 'jantar-especial', 'lua-de-mel-livre',
+    ];
+    const aba = aba_(ABAS.PRESENTES);
+    const linhas = lerAba_(ABAS.PRESENTES)
+        .filter(function (p) { return ids.indexOf(String(p.id).trim()) !== -1; })
+        .map(function (p) { return p._linha; })
+        .sort(function (a, b) { return b - a; }); // de baixo para cima, senão os índices deslocam
+
+    linhas.forEach(function (n) { aba.deleteRow(n); });
+    CacheService.getScriptCache().removeAll(['catalogo', 'status']);
+    log_('info', 'limparPresentesFake', linhas.length + ' removidos');
+    return linhas.length + ' removidos';
+}
+
 // ============================================================ testes manuais
 
 /** Rode no editor antes de publicar. Não envia e-mail se modo_simulacao=TRUE. */

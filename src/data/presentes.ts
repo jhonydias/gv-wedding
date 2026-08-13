@@ -1,22 +1,42 @@
 /**
- * Lista de presentes — task 07.
+ * Lista de presentes — task 07, com o catálogo vindo da planilha (task 10).
  *
- * Todo presente é uma COTA EM DINHEIRO paga por Pix. O card mostra o objeto (a narrativa);
- * o Pix é o mecanismo. Consequência: não existe estado "comprado" — várias pessoas podem
- * dar a mesma cota, e isso é desejável. Some o componente mais complexo do sistema, e some
- * também a pior falha da lista tradicional: dois convidados comprando o mesmo item.
+ * O catálogo NÃO é escrito à mão aqui. Ele vem de `catalogo.json`, congelado por
+ * `node tools/catalogo.mjs` a partir de `?acao=catalogo` do Apps Script.
+ *
+ * O build nunca vai à rede: se a planilha cair, o último catálogo bom continua valendo.
+ * Rode o script quando o catálogo mudar e commite o JSON.
+ *
+ * Todo presente é uma COTA EM DINHEIRO paga por Pix. Não existe estado "comprado" no
+ * dado: a disponibilidade é derivada dos pagamentos confirmados e chega em runtime
+ * (`src/lib/status.ts`).
  */
+import catalogo from './catalogo.json';
 
 export type Faixa = 'lembranca' | 'casa' | 'grande' | 'luademel';
 
 export interface Presente {
-    /** Vira o txid do Pix. Só letras, números e hífen. */
+    /** Slug estável. Vira o txid do Pix e aparece no extrato dos noivos. */
     slug: string;
     nome: string;
-    /** Em reais, inteiro. */
+    /** Em reais. */
     valor: number;
     faixa: Faixa;
     descricao?: string;
+    /** URL de origem da imagem, como está na planilha. */
+    imagem?: string;
+}
+
+/** Formato do JSON congelado — espelha o que `?acao=catalogo` devolve. */
+interface ItemCatalogo {
+    id: string;
+    nome: string;
+    valor: number;
+    faixa: string;
+    imagem?: string;
+    descricao?: string;
+    cotas?: number | null;
+    ordem?: number;
 }
 
 export const FAIXAS: ReadonlyArray<{ id: Faixa; titulo: string; apoio: string }> = [
@@ -40,33 +60,19 @@ export const PIX = {
     cidade: import.meta.env.PUBLIC_PIX_CIDADE ?? 'BELEM',
 } as const;
 
-/**
- * TODO(conteúdo): curar com Gisele e Victor. 18 a 30 itens é o ponto ideal —
- * menos parece pobre, mais gera paralisia de escolha.
- *
- * A lista abaixo é uma PROPOSTA de partida, com valores redondos e itens genéricos.
- * Trocar por presentes que os noivos realmente queiram antes de publicar.
- */
-export const PRESENTES: readonly Presente[] = [
-    { slug: 'jogo-de-taca', nome: 'Jogo de taças', valor: 90, faixa: 'lembranca' },
-    { slug: 'toalhas', nome: 'Jogo de toalhas', valor: 120, faixa: 'lembranca' },
-    { slug: 'panelas-pequenas', nome: 'Panelas pequenas', valor: 140, faixa: 'lembranca' },
-    { slug: 'jogo-de-jantar', nome: 'Jogo de jantar', valor: 320, faixa: 'casa' },
-    { slug: 'jogo-de-cama', nome: 'Jogo de cama', valor: 280, faixa: 'casa' },
-    { slug: 'liquidificador', nome: 'Liquidificador', valor: 250, faixa: 'casa' },
-    { slug: 'air-fryer', nome: 'Air fryer', valor: 450, faixa: 'casa' },
-    { slug: 'micro-ondas', nome: 'Micro-ondas', valor: 700, faixa: 'casa' },
-    { slug: 'aspirador', nome: 'Aspirador', valor: 600, faixa: 'casa' },
-    { slug: 'geladeira', nome: 'Geladeira', valor: 2500, faixa: 'grande' },
-    { slug: 'maquina-de-lavar', nome: 'Máquina de lavar', valor: 2200, faixa: 'grande' },
-    { slug: 'sofa', nome: 'Sofá', valor: 1800, faixa: 'grande' },
-    { slug: 'colchao', nome: 'Colchão', valor: 1500, faixa: 'grande' },
-    { slug: 'passagem', nome: 'Cota da passagem', valor: 500, faixa: 'luademel' },
-    { slug: 'hospedagem', nome: 'Cota da hospedagem', valor: 800, faixa: 'luademel' },
-    { slug: 'passeio', nome: 'Um passeio a dois', valor: 300, faixa: 'luademel' },
-    { slug: 'jantar-especial', nome: 'Um jantar especial', valor: 400, faixa: 'luademel' },
-    { slug: 'lua-de-mel-livre', nome: 'Cota livre da lua de mel', valor: 200, faixa: 'luademel' },
-] as const;
+const ehFaixa = (v: string): v is Faixa =>
+    FAIXAS.some((f) => f.id === v);
+
+export const PRESENTES: readonly Presente[] = (catalogo as ItemCatalogo[])
+    .filter((p) => ehFaixa(p.faixa))
+    .map((p) => ({
+        slug: p.id,
+        nome: p.nome,
+        valor: p.valor,
+        faixa: p.faixa as Faixa,
+        descricao: p.descricao || undefined,
+        imagem: p.imagem || undefined,
+    }));
 
 /** Formata em BRL. Nunca concatenar 'R$ ' + n. */
 export const emReais = (v: number): string =>
