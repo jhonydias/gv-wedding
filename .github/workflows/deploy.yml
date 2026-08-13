@@ -37,7 +37,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          PUBLIC_RSVP_ENDPOINT: ${{ secrets.PUBLIC_RSVP_ENDPOINT }}
+          PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
           PUBLIC_PIX_CHAVE: ${{ secrets.PUBLIC_PIX_CHAVE }}
           PUBLIC_PIX_NOME: ${{ secrets.PUBLIC_PIX_NOME }}
           PUBLIC_PIX_CIDADE: ${{ secrets.PUBLIC_PIX_CIDADE }}
@@ -45,7 +45,7 @@ jobs:
       # Orçamento de peso como gate. O runner é Linux e case-sensitive:
       # `Foto.JPG` referenciado como `foto.jpg` passa no Windows e quebra aqui.
       - name: Auditar orçamento de imagens
-        run: node scripts/auditar.mjs
+        run: node tools/auditar.mjs
 
       - uses: actions/upload-pages-artifact@v3
         with:

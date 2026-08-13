@@ -59,7 +59,12 @@ const itens = configurado
 
                 <ul class="grade">
                     {daFaixa.map((p, i) => (
-                        <li class="presente" data-revela style={`--atraso:${Math.min(i, 4) * 70}ms`}>
+                        <li
+                            class="presente"
+                            data-presente-id={p.slug}
+                            data-revela
+                            style={`--atraso:${Math.min(i, 4) * 70}ms`}
+                        >
                             <h3 class="presente__nome">{p.nome}</h3>
                             {p.descricao && <p class="presente__desc">{p.descricao}</p>}
                             <p class="presente__valor tabular">{emReais(p.valor)}</p>
@@ -116,7 +121,11 @@ const itens = configurado
 
 <script>
     import { modalPix } from '../lib/copiar';
+    import { aplicarStatus } from '../lib/status';
+
     modalPix();
+    // Sobrepõe a disponibilidade vinda do backend. Se falhar, a página fica como está.
+    void aplicarStatus();
 </script>
 
 <style>
@@ -166,6 +175,25 @@ const itens = configurado
     .presente__botao {
         margin-block-start: auto;
         inline-size: 100%;
+    }
+
+    /* Presente já dado: marcado, não escondido. */
+    .presente[data-indisponivel] {
+        background: color-mix(in srgb, var(--bg-alt) 55%, var(--bg));
+    }
+    .presente[data-indisponivel] .presente__nome,
+    .presente[data-indisponivel] .presente__valor {
+        text-decoration: line-through;
+        text-decoration-thickness: 1px;
+        color: var(--texto-suave);
+    }
+    .presente__botao:disabled {
+        background: transparent;
+        border: 1px solid var(--borda);
+        color: var(--texto-suave);
+        cursor: default;
+        text-transform: none;
+        letter-spacing: 0;
     }
 
     .aviso {

@@ -1,13 +1,13 @@
 ---
-const endpoint = import.meta.env.PUBLIC_RSVP_ENDPOINT ?? '';
+const endpoint = import.meta.env.PUBLIC_BACKEND_URL ?? '';
 const configurado = endpoint.length > 0;
 ---
 
 {
     !configurado && (
         <p class="aviso" role="alert">
-            <strong>Endpoint não configurado.</strong> Defina <code>PUBLIC_RSVP_ENDPOINT</code> no
-            ambiente com a URL <code>/exec</code> do Apps Script. Veja <code>README-rsvp.md</code>.
+            <strong>Endpoint não configurado.</strong> Defina <code>PUBLIC_BACKEND_URL</code> no
+            ambiente com a URL <code>/exec</code> do Apps Script. Veja <code>README-backend.md</code>.
         </p>
     )
 }
