@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+import Galeria from '../components/Galeria.astro';
+import { FOTOS } from '../data/fotos';
+---
+
+<Base
+    titulo="Galeria · Gisele & Victor"
+    descricao="As fotos do ensaio de Gisele e Victor."
+    atual="/galeria"
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1>Galeria</h1>
+            <p class="cabeca__apoio">{FOTOS.length} fotos do nosso ensaio</p>
+        </div>
+    </header>
+
+    <section class="secao">
+        <div class="wrap">
+            <Galeria />
+        </div>
+    </section>
+</Base>
+
+<style>
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 40svh;
+        padding-block: calc(var(--e-6) + var(--e-4)) var(--e-4);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-2);
+        font-size: var(--t-sm);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+</style>

@@ -1,0 +1,254 @@
+---
+import { Image, getImage } from 'astro:assets';
+import { FOTOS } from '../data/fotos';
+
+const arquivos = import.meta.glob<{ default: ImageMetadata }>(
+    '../assets/fotos/*.{jpg,jpeg,png,webp}',
+    { eager: true },
+);
+
+const imagemDe = (nome: string): ImageMetadata | null => {
+    const chave = Object.keys(arquivos).find((k) => k.endsWith(`/${nome}`));
+    return chave ? (arquivos[chave]?.default ?? null) : null;
+};
+
+const base = FOTOS.map((f) => ({ foto: f, imagem: imagemDe(f.arquivo) }));
+const faltando = base.filter((it) => it.imagem === null).map((it) => it.foto.arquivo);
+
+/**
+ * Variante grande do lightbox, gerada no build.
+ *
+ * NUNCA usar `imagem.src` aqui: isso referencia o JPEG ORIGINAL, que o Astro então
+ * copia inteiro para o dist. Medido: 35 arquivos, 18,7 MB de JPEG cru servidos sem
+ * necessidade, com o maior em 705 KB — quase 3× o teto de 250 KB da task 02.
+ *
+ * 1200px cobre uma foto 2:3 em tela cheia num monitor 1440p.
+ *
+ * Nas miniaturas, o `width={800}` do <Image> fixa o fallback do atributo `src`. Sem ele o
+ * Astro usa a largura original (1600px) como fallback e emite 35 arquivos de ~276 KB que
+ * nenhum browser com suporte a srcset chega a baixar.
+ *
+ * Nota: comentário aqui e não junto ao atributo — `/* *\/` dentro da lista de atributos
+ * é interpretado como atributo pelo parser do Astro e quebra a tipagem.
+ */
+const itens = await Promise.all(
+    base.map(async (it) => ({
+        ...it,
+        grande: it.imagem
+            ? await getImage({ src: it.imagem, width: 1200, format: 'webp', quality: 62 })
+            : null,
+    })),
+);
+---
+
+{
+    faltando.length > 0 && (
+        <p class="aviso" role="alert">
+            Fotos não encontradas em <code>src/assets/fotos/</code>: {faltando.join(', ')}
+        </p>
+    )
+}
+
+<ul class="galeria">
+    {
+        itens.map(
+            ({ foto, imagem, grande }, i) =>
+                imagem &&
+                grande && (
+                    <li
+                        class="galeria__item"
+                        data-orient={foto.orient}
+                        data-revela
+                        style={`--atraso:${Math.min(i, 5) * 60}ms`}
+                    >
+                        {/* <button>, não <div onclick>: teclado e leitor de tela
+                            funcionam sem tabindex manual. */}
+                        <button
+                            type="button"
+                            data-foto={i}
+                            data-grande={grande.src}
+                            class="galeria__botao"
+                        >
+                            <Image
+                                src={imagem}
+                                alt={foto.alt}
+                                width={800}
+                                widths={[400, 800]}
+                                sizes="(max-width: 30rem) 90vw, (max-width: 48rem) 45vw, (max-width: 72rem) 30vw, 300px"
+                                loading={i < 6 ? 'eager' : 'lazy'}
+                                decoding="async"
+                                quality={68}
+                            />
+                            <span class="sr-only">Abrir foto {i + 1} de {itens.length}</span>
+                        </button>
+                    </li>
+                ),
+        )
+    }
+</ul>
+
+<dialog id="lightbox" class="lightbox" aria-label="Galeria de fotos">
+    <button class="lightbox__fechar" type="button" data-fechar aria-label="Fechar galeria">
+        &times;
+    </button>
+
+    <button class="lightbox__nav lightbox__nav--ant" type="button" data-dir="-1" aria-label="Foto anterior">
+        &larr;
+    </button>
+
+    <figure class="lightbox__palco">
+        <img id="lightbox-img" alt="" />
+    </figure>
+
+    <button class="lightbox__nav lightbox__nav--prox" type="button" data-dir="1" aria-label="Próxima foto">
+        &rarr;
+    </button>
+
+    <p class="lightbox__contador" data-contador aria-live="polite"></p>
+</dialog>
+
+<script>
+    import { lightbox } from '../lib/lightbox';
+    lightbox();
+</script>
+
+<style>
+    .galeria {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+        gap: var(--e-2);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .galeria__item {
+        aspect-ratio: 2 / 3;
+    }
+
+    /* As duas paisagens ocupam duas colunas e mantêm a altura de uma linha. */
+    .galeria__item[data-orient='paisagem'] {
+        grid-column: span 2;
+        aspect-ratio: 3 / 2;
+    }
+
+    @media (max-width: 30rem) {
+        /* Em coluna única, "span 2" não existe: volta a ser item normal. */
+        .galeria__item[data-orient='paisagem'] {
+            grid-column: span 1;
+        }
+    }
+
+    .galeria__botao {
+        display: block;
+        inline-size: 100%;
+        block-size: 100%;
+        padding: 0;
+        border: 0;
+        background: var(--areia);
+        cursor: zoom-in;
+        overflow: hidden;
+    }
+    .galeria__botao :global(img) {
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: cover;
+        transition: scale var(--dur-media) var(--ease-saida);
+    }
+    .galeria__botao:hover :global(img),
+    .galeria__botao:focus-visible :global(img) {
+        scale: 1.04;
+    }
+
+    .aviso {
+        margin-block-end: var(--e-3);
+        padding: var(--e-2);
+        border: 1px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+    }
+
+    /* --- Lightbox --- */
+    .lightbox {
+        inline-size: 100vw;
+        max-inline-size: 100vw;
+        block-size: 100svh;
+        max-block-size: 100svh;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        overflow: hidden;
+    }
+    .lightbox::backdrop {
+        background: color-mix(in srgb, #48492a 92%, transparent);
+        backdrop-filter: blur(6px);
+    }
+
+    .lightbox__palco {
+        display: grid;
+        place-items: center;
+        block-size: 100%;
+        margin: 0;
+        padding: clamp(var(--e-3), 5vw, var(--e-5));
+    }
+    .lightbox__palco img {
+        max-inline-size: 100%;
+        max-block-size: 100%;
+        inline-size: auto;
+        block-size: auto;
+        object-fit: contain;
+    }
+
+    .lightbox__fechar,
+    .lightbox__nav {
+        position: absolute;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        /* Alvo de toque de 44px mesmo com o ícone menor. */
+        inline-size: 48px;
+        block-size: 48px;
+        background: color-mix(in srgb, #f7f1eb 12%, transparent);
+        border: 1px solid color-mix(in srgb, #f7f1eb 30%, transparent);
+        border-radius: 50%;
+        color: #f7f1eb;
+        font-size: 1.4rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+    .lightbox__fechar:hover,
+    .lightbox__nav:hover {
+        background: color-mix(in srgb, #f7f1eb 24%, transparent);
+    }
+    .lightbox__fechar:focus-visible,
+    .lightbox__nav:focus-visible {
+        outline: 2px solid #f0994a;
+        outline-offset: 3px;
+    }
+
+    .lightbox__fechar {
+        inset-block-start: var(--e-2);
+        inset-inline-end: var(--e-2);
+    }
+    .lightbox__nav {
+        inset-block-start: 50%;
+        translate: 0 -50%;
+    }
+    .lightbox__nav--ant {
+        inset-inline-start: var(--e-2);
+    }
+    .lightbox__nav--prox {
+        inset-inline-end: var(--e-2);
+    }
+
+    .lightbox__contador {
+        position: absolute;
+        inset-block-end: var(--e-2);
+        inset-inline: 0;
+        text-align: center;
+        color: #f7f1eb;
+        font-size: var(--t-xs);
+        letter-spacing: 0.2em;
+    }
+</style>
