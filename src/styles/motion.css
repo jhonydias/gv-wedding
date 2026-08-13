@@ -1,0 +1,68 @@
+/*
+ * MOTION — task 02 §5
+ *
+ * Um único mecanismo de revelação para todas as seções. Tasks 03–08 CONSOMEM isto
+ * e não escrevem IntersectionObserver próprio.
+ *
+ * Regra: anime só opacity, translate, scale, clip-path e filter.
+ * Nunca top/left/width/height — essas disparam layout a cada quadro.
+ */
+
+:root {
+    --dur-rapida: 180ms;
+    --dur-media: 420ms;
+    --dur-lenta: 900ms;
+    --ease-saida: cubic-bezier(0.16, 1, 0.3, 1); /* desacelera forte: caro, editorial */
+}
+
+[data-revela] {
+    opacity: 0;
+    translate: 0 1.5rem;
+    transition:
+        opacity var(--dur-lenta) var(--ease-saida),
+        translate var(--dur-lenta) var(--ease-saida);
+    transition-delay: var(--atraso, 0ms);
+}
+
+[data-revela].visivel {
+    opacity: 1;
+    translate: 0 0;
+}
+
+/* Cortina: revela de baixo para cima sem tocar no layout. */
+[data-revela='cortina'] {
+    opacity: 1;
+    translate: 0 0;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path var(--dur-lenta) var(--ease-saida);
+    transition-delay: var(--atraso, 0ms);
+}
+
+[data-revela='cortina'].visivel {
+    clip-path: inset(0 0 0 0);
+}
+
+/*
+ * Movimento reduzido: tudo já nasce no estado final.
+ * O revelar.ts também checa a media query ANTES de instalar o observer — este bloco
+ * é a segunda linha de defesa, para o caso de o JS não rodar.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    [data-revela] {
+        opacity: 1;
+        translate: 0 0;
+    }
+
+    [data-revela='cortina'] {
+        clip-path: inset(0 0 0 0);
+    }
+}

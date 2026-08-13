@@ -1,0 +1,206 @@
+/* BASE — reset enxuto, tipografia e foco. Task 02 §3.2, §3.3 e §7. */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+}
+
+html {
+    /* `clip`, não `hidden`: não cria contexto de rolagem e permite `position: sticky`. */
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    /* Referência para as unidades cqw do .sangra: 100cqw = largura do body,
+       que já exclui a barra de rolagem (ao contrário de 100vw). */
+    container-type: inline-size;
+
+    background: var(--bg);
+    color: var(--texto);
+    font-family: var(--fonte-texto);
+    font-size: var(--t-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-block-size: 100svh;
+}
+
+img,
+picture,
+svg,
+video {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+p,
+h1,
+h2,
+h3,
+h4 {
+    overflow-wrap: break-word;
+}
+
+/* --- Display: didone em caixa alta. É o gesto da marca. --- */
+.display,
+h1,
+h2,
+h3 {
+    font-family: var(--fonte-display);
+    font-weight: 500;
+    line-height: 0.92; /* maiúsculas não têm descendentes: entrelinha fecha */
+    letter-spacing: 0.01em; /* didone em caixa alta pede folga mínima */
+    text-wrap: balance;
+}
+
+.display,
+h1,
+h2 {
+    text-transform: uppercase;
+}
+
+h1 {
+    font-size: var(--t-2xl);
+}
+h2 {
+    font-size: var(--t-xl);
+}
+h3 {
+    font-size: var(--t-lg);
+}
+
+.texto-corpo {
+    max-inline-size: var(--largura-texto);
+    text-wrap: pretty;
+}
+
+a {
+    color: var(--link);
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+}
+
+/* --- Foco sempre visível. O reset não pode apagar o outline. --- */
+:focus-visible {
+    outline: 2px solid var(--foco);
+    outline-offset: 3px;
+    border-radius: var(--raio);
+}
+
+/* --- Layout --- */
+.wrap {
+    inline-size: min(100% - var(--calha) * 2, var(--largura-max));
+    margin-inline: auto;
+}
+
+.grid-ed {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--e-3);
+}
+@media (max-width: 48rem) {
+    .grid-ed {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/*
+ * Sangramento total: um elemento DENTRO de .wrap vaza até a borda da viewport.
+ *
+ * Usa 100vw MENOS a barra de rolagem. A versão ingênua (`inline-size: 100vw`)
+ * transborda exatamente a largura da barra — o `overflow-x: clip` do html esconde,
+ * mas o overflow existe e desloca o centro. Medido antes da correção:
+ * elemento 1707px numa viewport de 1692px, left -8px.
+ *
+ * Não aplicar em <section> de nível superior: seções já ocupam a largura toda.
+ */
+.sangra {
+    inline-size: 100cqw;
+    margin-left: calc(50% - 50cqw);
+}
+
+.secao {
+    padding-block: var(--e-6);
+}
+
+/* --- Botões --- */
+.botao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 44px; /* alvo de toque mínimo */
+    padding: var(--e-1) var(--e-3);
+    border: 1px solid transparent;
+    border-radius: var(--raio);
+    font-size: var(--t-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--dur-rapida) var(--ease-saida),
+        color var(--dur-rapida) var(--ease-saida);
+}
+
+.botao--primario {
+    background: var(--btn-bg);
+    color: var(--btn-texto); /* tinta sobre laranja = 7.76:1 */
+}
+.botao--primario:hover {
+    background: color-mix(in srgb, var(--btn-bg) 86%, var(--tinta));
+}
+
+.botao--fantasma {
+    background: transparent;
+    border-color: var(--borda);
+    color: var(--texto);
+}
+.botao--fantasma:hover {
+    border-color: var(--texto);
+}
+
+/* --- Utilitários --- */
+.sr-only {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Skip-link: primeiro focável do body, visível ao receber foco. */
+.pular {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    z-index: 999;
+    padding: var(--e-1) var(--e-2);
+    background: var(--oliva);
+    color: var(--creme);
+    translate: 0 -120%;
+}
+.pular:focus {
+    translate: 0 0;
+}
+
+.tabular {
+    font-variant-numeric: tabular-nums;
+}

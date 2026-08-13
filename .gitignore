@@ -1,0 +1,15 @@
+# build
+dist/
+.astro/
+
+# deps
+node_modules/
+
+# ambiente — nunca commitar chaves (endpoint do RSVP, chave Pix)
+.env
+.env.production
+.env.local
+
+# sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,71 @@
+---
+/**
+ * Layout base — task 02 §4 e §7.
+ *
+ * Nav e rodapé definitivos são da task 03. Aqui fica só o esqueleto:
+ * <head>, skip-link, slot e o bootstrap do sistema de revelação.
+ */
+// Só o eixo de peso, normal (sem itálico). Cada @font-face traz unicode-range, então o
+// browser baixa apenas o subset latino — os demais ficam no dist mas nunca são transferidos.
+import '@fontsource-variable/bodoni-moda/wght.css';
+import '@fontsource-variable/inter/wght.css';
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/motion.css';
+
+import { EVENTO, dataPorExtenso } from '../data/event';
+import { rota } from '../lib/url';
+
+interface Props {
+    titulo: string;
+    descricao?: string;
+}
+
+const { titulo, descricao } = Astro.props;
+
+const descricaoPadrao =
+    `${EVENTO.noiva} e ${EVENTO.noivo} se casam em ${dataPorExtenso()}, ` +
+    `no ${EVENTO.local.nome}, em ${EVENTO.local.cidade}. Confirme sua presença.`;
+
+const canonica = new URL(Astro.url.pathname, Astro.site);
+const ogImagem = new URL(rota('/og-image.png'), Astro.site);
+---
+
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{titulo}</title>
+        <meta name="description" content={descricao ?? descricaoPadrao} />
+        <link rel="canonical" href={canonica.href} />
+
+        <link rel="icon" type="image/svg+xml" href={rota('/favicon.svg')} />
+        <link rel="apple-touch-icon" href={rota('/apple-touch-icon.png')} />
+        <meta name="theme-color" content="#48492A" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={titulo} />
+        <meta property="og:description" content={descricao ?? descricaoPadrao} />
+        <meta property="og:image" content={ogImagem.href} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:locale" content="pt_BR" />
+        <meta name="twitter:card" content="summary_large_image" />
+
+        <meta name="generator" content={Astro.generator} />
+    </head>
+
+    <body>
+        <a class="pular" href="#conteudo">Pular para o conteúdo</a>
+
+        <main id="conteudo">
+            <slot />
+        </main>
+
+        <script>
+            import { revelar } from '../lib/revelar';
+            revelar();
+        </script>
+    </body>
+</html>

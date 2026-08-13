@@ -1,0 +1,143 @@
+/*
+ * TOKENS — task 02 §3
+ *
+ * Cores extraídas do brandbook oficial (Nova Proposta - Gisele e Victor R01 C.pdf,
+ * @clevsvelasco) por amostragem de pixels dominantes das páginas renderizadas: p.1 (capa),
+ * p.2 (fundo claro) e p.10 ("Aplicação", a grade completa). São os hex reais do arquivo.
+ *
+ * REGRA: componentes referenciam SOMENTE os papéis semânticos (--bg, --texto, --acento…).
+ * Os tokens crus (--oliva, --laranja…) só aparecem neste arquivo. É isso que permite
+ * inverter uma seção trocando variáveis em vez de reescrever CSS.
+ */
+
+:root {
+    /* --- Marca (não alterar: são os valores do brandbook) --- */
+    --oliva: #48492a; /* verde escuro. Cor âncora */
+    --creme: #f7f1eb; /* off-white. Fundo padrão */
+    --areia: #eddec9; /* bege quente. Faixas alternadas, cards */
+    --laranja: #f0994a; /* acento. O "&" e ações primárias */
+    --lilas: #9b87a2; /* acento secundário. Uso pontual */
+    --sage: #afb06a; /* verde claro. Superfícies grandes */
+    --tinta: #1a1a1a; /* quase-preto, para superfícies onde o oliva não contrasta */
+
+    /*
+     * --- Derivados para contraste ---
+     * Não são "novas cores da marca": são o mesmo laranja escurecido para uso em TEXTO,
+     * onde o #F0994A reprova. O laranja da marca continua intacto acima.
+     */
+    --laranja-texto: #743d05; /* 7.77:1 sobre creme (AAA) · 6.59:1 sobre areia (AA) */
+
+    /* --- Papéis semânticos --- */
+    --bg: var(--creme);
+    --bg-alt: var(--areia);
+    --bg-inverso: var(--oliva);
+    --texto: var(--oliva);
+    --texto-suave: color-mix(in srgb, var(--oliva) 72%, var(--creme));
+    --texto-inverso: var(--creme);
+    --link: var(--laranja-texto);
+    --acento: var(--laranja);
+    --borda: color-mix(in srgb, var(--oliva) 18%, transparent);
+    --foco: var(--laranja-texto);
+
+    /* Botão primário: fundo laranja da marca + texto tinta = 7.76:1 (AAA). */
+    --btn-bg: var(--laranja);
+    --btn-texto: var(--tinta);
+
+    /*
+     * --- Tipografia ---
+     * Display: Bodoni Moda é um didone com eixo óptico — o mais próximo do logo entre as
+     * opções livres, e o eixo evita que os filetes sumam em corpo pequeno.
+     * Auto-hospedada via @fontsource-variable: nenhuma requisição a domínio externo.
+     * TODO(design): comparar com Prata e DM Serif Display em "GISELE COLARES" a 96px
+     * e registrar a decisão final aqui.
+     */
+    --fonte-display: 'Bodoni Moda Variable', 'Didot', 'Times New Roman', serif;
+    --fonte-texto: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+    --t-xs: clamp(0.78rem, 0.75rem + 0.15vw, 0.86rem);
+    --t-sm: clamp(0.9rem, 0.87rem + 0.18vw, 1rem);
+    --t-base: clamp(1rem, 0.95rem + 0.28vw, 1.15rem);
+    --t-lg: clamp(1.25rem, 1.1rem + 0.7vw, 1.7rem);
+    --t-xl: clamp(1.7rem, 1.35rem + 1.6vw, 2.8rem);
+    --t-2xl: clamp(2.3rem, 1.6rem + 3.2vw, 4.5rem);
+    --t-3xl: clamp(3rem, 1.6rem + 6.5vw, 8rem); /* nomes no hero */
+
+    /* --- Espaço e ritmo --- */
+    --e-1: 0.5rem;
+    --e-2: 1rem;
+    --e-3: 1.5rem;
+    --e-4: 2.5rem;
+    --e-5: 4rem;
+    --e-6: 6rem;
+    --e-7: 9rem;
+
+    --calha: clamp(1.25rem, 5vw, 5rem);
+    --largura-max: 78rem;
+    --largura-texto: 34rem; /* ~68 caracteres */
+    --raio: 2px; /* quase reto: editorial, não "app" */
+
+    /*
+     * NÃO criar um token `--barra: calc(100vw - 100%)` para descontar a barra de rolagem.
+     * Custom property substitui TOKENS: o `100%` é resolvido no elemento que USA a variável,
+     * não no :root. Dentro de um .wrap de 1248px isso rendia 459px em vez dos 15px reais.
+     * O desconto da barra é feito com unidades de container query — ver .sangra em base.css.
+     */
+}
+
+/*
+ * ===================================================================
+ * CONTRASTE — medido, não estimado (WCAG 2.1, sRGB)
+ * ===================================================================
+ *   8.28:1  AAA       oliva sobre creme          ← corpo de texto padrão
+ *   8.28:1  AAA       creme sobre oliva          ← seção .inverso
+ *   7.03:1  AAA       oliva sobre areia          ← seção .alt
+ *  15.53:1  AAA       tinta sobre creme
+ *   7.77:1  AAA       laranja-texto sobre creme  ← links
+ *   7.76:1  AAA       tinta sobre laranja        ← botão primário
+ *   7.66:1  AAA       tinta sobre sage
+ *   5.29:1  AA        tinta sobre lilás
+ *
+ *   REPROVAM — nunca usar como texto normal:
+ *   4.14:1  ✗  oliva sobre laranja   (só serve para texto grande ≥24px)
+ *   4.09:1  ✗  oliva sobre sage      (use --tinta)
+ *   2.82:1  ✗  oliva sobre lilás     (use --tinta)
+ *   2.24:1  ✗  branco sobre laranja
+ *   2.00:1  ✗  LARANJA sobre creme   (use --laranja-texto)
+ * ===================================================================
+ */
+
+/* Seção invertida (fundo oliva). Nenhum componente reescreve cor por conta própria. */
+.inverso {
+    --bg: var(--oliva);
+    --texto: var(--creme);
+    --texto-suave: color-mix(in srgb, var(--creme) 70%, var(--oliva));
+    --borda: color-mix(in srgb, var(--creme) 22%, transparent);
+    --link: var(--creme); /* sobre oliva, o laranja puro dá só 4.14:1 */
+    --foco: var(--laranja);
+
+    background: var(--bg);
+    color: var(--texto);
+}
+
+/* Faixa alternada em areia. */
+.alt {
+    --bg: var(--areia);
+    background: var(--bg);
+}
+
+/* Superfícies onde o oliva não contrasta: o texto vira tinta. */
+.sobre-sage,
+.sobre-lilas {
+    --texto: var(--tinta);
+    --texto-suave: color-mix(in srgb, var(--tinta) 78%, transparent);
+    --link: var(--tinta);
+    color: var(--texto);
+}
+.sobre-sage {
+    --bg: var(--sage);
+    background: var(--bg);
+}
+.sobre-lilas {
+    --bg: var(--lilas);
+    background: var(--bg);
+}
