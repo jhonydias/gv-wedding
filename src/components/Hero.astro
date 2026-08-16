@@ -43,7 +43,29 @@ const { local } = EVENTO;
         </p>
     </div>
 
-    <span class="hero__rolar" aria-hidden="true">role</span>
+    {/*
+        Afordância de rolagem, não texto. Aqui havia a palavra "role" em caixa alta com
+        `letter-spacing: 0.3em`, que se lê "ROLE" ou "rolê" antes de se ler "role a página"
+        (task 12 §1). O papel de sinalizar que o hero de 100svh continua abaixo da dobra
+        permanece; a palavra, não.
+
+        Decorativo: `aria-hidden` fica, e isto NÃO vira <button> nem <a>. Se um dia virar
+        navegação de verdade, precisa de nome acessível, alvo de 44px e foco visível.
+    */}
+    <span class="hero__rolar" aria-hidden="true">
+        <svg
+            viewBox="0 0 28 10"
+            width="28"
+            height="10"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+        >
+            <path d="M1 1 14 9 27 1" />
+        </svg>
+    </span>
 </section>
 
 <style>
@@ -159,16 +181,51 @@ const { local } = EVENTO;
         margin-block-start: 0.5em;
     }
 
+    /*
+     * Seta fina, larga e rasa (28×10 com traço de 1px): a proporção deitada é o que a
+     * mantém discreta. Um chevron alto e grosso vira ícone de app e briga com o didone
+     * dos nomes.
+     */
     .hero__rolar {
         position: absolute;
         z-index: 1;
         inset-block-end: var(--e-3);
         inset-inline-start: 50%;
         translate: -50% 0;
-        font-size: var(--t-xs);
-        letter-spacing: 0.3em;
-        text-transform: uppercase;
         color: color-mix(in srgb, var(--creme) 70%, transparent);
+    }
+    .hero__rolar :global(svg) {
+        display: block;
+    }
+
+    /*
+     * A media query de movimento vem ANTES da animação, não depois (regra 3 do README das
+     * tasks): sem `no-preference`, quem pediu movimento reduzido dependeria do bloco de
+     * `motion.css` para desligar isto, e o estado final ficaria por acaso.
+     *
+     * Anima só `translate`, nunca `inset-block-end` (task 02 §5). O `-50%` do eixo em linha
+     * é repetido em cada quadro porque ele também centraliza o elemento: perdê-lo joga a
+     * seta para a direita.
+     *
+     * `ease-in-out`, e não o `--ease-saida`: aquela curva desacelera forte no fim, o que é
+     * certo para uma entrada única e errado para um ciclo, onde vira solavanco. O repouso
+     * de 40% do ciclo é o que faz respirar em vez de pular.
+     */
+    @media (prefers-reduced-motion: no-preference) {
+        .hero__rolar {
+            animation: hero-descer 2.6s ease-in-out infinite;
+        }
+    }
+
+    @keyframes hero-descer {
+        0%,
+        60%,
+        100% {
+            translate: -50% 0;
+        }
+        30% {
+            translate: -50% 6px;
+        }
     }
 
     @media (max-width: 40rem) {
