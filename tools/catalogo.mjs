@@ -89,6 +89,39 @@ if (problemas.length) {
     console.warn(`${problemas.length} item(ns) descartado(s):\n${problemas.join('\n')}`);
 }
 
+/**
+ * Normaliza travessão vindo da planilha — task 11 §3.5.
+ *
+ * `nome` e `descricao` são digitados à mão por quem edita a planilha, que não tem como
+ * lembrar da regra de estilo do site. Sem esta normalização, um travessão novo entra no
+ * catálogo congelado e só é pego pela trava de `tools/auditar.mjs`, que reprova o build
+ * por um motivo que não está em nenhum arquivo do repositório.
+ *
+ * Avisa o que trocou, sempre: normalização silenciosa é como texto errado sobrevive.
+ * O aviso existe para que alguém corrija na origem, que é a planilha.
+ */
+const normalizados = [];
+for (const p of presentes) {
+    for (const campo of ['nome', 'descricao']) {
+        if (typeof p[campo] !== 'string' || !p[campo].includes('—')) continue;
+        const antes = p[campo];
+        // O `[\s:]+$` limpa o caso do travessão no fim do texto, que viraria um
+        // dois-pontos solto pendurado no fim da frase.
+        p[campo] = antes
+            .replace(/\s*—\s*/g, ': ')
+            .replace(/[\s:]+$/, '')
+            .trim();
+        normalizados.push(`  ${p.id}.${campo}: "${antes}" => "${p[campo]}"`);
+    }
+}
+
+if (normalizados.length) {
+    console.warn(
+        `${normalizados.length} travessão(ões) normalizado(s). Corrija na planilha:\n` +
+            normalizados.join('\n'),
+    );
+}
+
 fs.mkdirSync(path.dirname(DESTINO), { recursive: true });
 fs.writeFileSync(DESTINO, `${JSON.stringify(presentes, null, 2)}\n`, 'utf8');
 

@@ -163,7 +163,7 @@ function configurarPlanilha() {
     }
 
     log_('info', 'configurarPlanilha', 'abas verificadas');
-    return 'ok — confira a aba Config antes de publicar';
+    return 'ok. Confira a aba Config antes de publicar';
 }
 
 /** Instala o gatilho diário da campanha. Rode UMA VEZ. */
@@ -499,7 +499,7 @@ function enviarConfirmacao_(protocolo, d) {
 
     const cfg = config_();
     const txt = 'Presença confirmada, ' + d.nome + '!\n\nProtocolo: ' + protocolo +
-        '\n' + cfg.evento_local + ' — ' + cfg.evento_endereco;
+        '\n' + cfg.evento_local + '\n' + cfg.evento_endereco;
     enviarEmail_(d.contato, 'Presença confirmada!', txt,
         moldura_('Presença confirmada!',
             '<p>A gente mal pode esperar para ver você lá, ' + d.nome + '.</p>' +
@@ -582,9 +582,9 @@ function enviarCampanha(chave) {
 function corpoTexto_(chave, l, cfg) {
     const nome = String(l.nome).split(' ')[0];
     const base = {
-        d30: 'Oi, ' + nome + '! Faltam 30 dias. ' + cfg.evento_local + ' — ' + cfg.evento_endereco,
+        d30: 'Oi, ' + nome + '! Faltam 30 dias. ' + cfg.evento_local + ', ' + cfg.evento_endereco,
         d7: 'Oi, ' + nome + '! É na próxima semana, dia 31 de janeiro às 19h.',
-        d1: 'É amanhã, ' + nome + '! ' + cfg.evento_local + ' — ' + cfg.evento_endereco,
+        d1: 'É amanhã, ' + nome + '! ' + cfg.evento_local + ', ' + cfg.evento_endereco,
         pos: 'Obrigado por estar com a gente, ' + nome + '!',
     };
     return base[chave] + '\n\n' + cfg.site_url + '/informacoes';
@@ -605,7 +605,7 @@ function corpoHtml_(chave, l, cfg) {
                 '<p>Separamos tudo que você precisa: endereço, como chegar, traje e hospedagem.</p>' +
                 btn('Ver informações', info);
         case 'd7':
-            return '<p>Oi, ' + nome + '! É na próxima semana — <strong>31 de janeiro, às 19h</strong>.</p>' +
+            return '<p>Oi, ' + nome + '! É na próxima semana, <strong>31 de janeiro, às 19h</strong>.</p>' +
                 '<p>' + cfg.evento_local + '<br>' + cfg.evento_endereco + '</p>' +
                 btn('Como chegar', info);
         case 'd1':
@@ -673,7 +673,7 @@ function semearPresentes() {
         ['micro-ondas', 'Micro-ondas', 700, 'casa', '', '', true, 1, 90],
         ['aspirador', 'Aspirador', 600, 'casa', '', '', true, 1, 100],
         ['jogo-de-panelas', 'Jogo de panelas', 520, 'casa', '', '', true, 1, 110],
-        ['geladeira', 'Geladeira', 2500, 'grande', '', 'Cota única — a maior de todas', true, 1, 120],
+        ['geladeira', 'Geladeira', 2500, 'grande', '', 'Cota única: a maior de todas', true, 1, 120],
         ['maquina-de-lavar', 'Máquina de lavar', 2200, 'grande', '', '', true, 1, 130],
         ['sofa', 'Sofá', 1800, 'grande', '', '', true, 1, 140],
         ['colchao', 'Colchão', 1500, 'grande', '', '', true, 1, 150],

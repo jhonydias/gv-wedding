@@ -152,7 +152,8 @@ export function rsvp(): void {
 
             if (painelOk) {
                 const prot = painelOk.querySelector<HTMLElement>('[data-protocolo]');
-                if (prot) prot.textContent = resposta.protocolo ?? '—';
+                // '···' é o mesmo espaço reservado do FormRsvp (task 11 §3.4).
+                if (prot) prot.textContent = resposta.protocolo ?? '···';
                 const tit = painelOk.querySelector<HTMLElement>('[data-sucesso-titulo]');
                 if (tit) {
                     tit.textContent =

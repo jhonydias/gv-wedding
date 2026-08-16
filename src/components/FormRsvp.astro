@@ -16,7 +16,7 @@ const configurado = endpoint.length > 0;
     <p class="rsvp__erro" data-erro-geral role="alert" hidden>
         <strong>Não conseguimos registrar.</strong>
         <span data-erro-detalhe></span>
-        Seus dados continuam preenchidos — tente de novo, ou fale com a gente pelo WhatsApp.
+        Seus dados continuam preenchidos. Tente de novo, ou fale com a gente pelo WhatsApp.
     </p>
 
     <div class="campo">
@@ -102,7 +102,9 @@ const configurado = endpoint.length > 0;
     <h2 data-sucesso-titulo>Presença confirmada!</h2>
     <p data-sucesso-texto></p>
     <p class="sucesso__protocolo">
-        Protocolo: <strong data-protocolo>—</strong>
+        {/* Espaço reservado até a resposta do servidor (task 11 §3.4). O mesmo valor
+            está no fallback de `rsvp.ts`; se mudar aqui, mudar lá. */}
+        Protocolo: <strong data-protocolo>&middot;&middot;&middot;</strong>
     </p>
 </div>
 

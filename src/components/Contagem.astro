@@ -4,11 +4,19 @@ import { MENU } from '../data/nav';
 import { rota } from '../lib/url';
 
 const confirmar = MENU.find((m) => m.href === '/confirmar');
+/**
+ * `vazio` é o espaço reservado até o JS assumir (task 11 §3.4).
+ *
+ * Tem que ter a MESMA contagem de caracteres do valor final, na mesma fonte tabular,
+ * senão a célula muda de largura no primeiro tick e volta o CLS que a task 09 corrigiu.
+ * Horas, minutos e segundos saem de `padStart(2, '0')`; dias é o número cru, hoje na
+ * casa das centenas.
+ */
 const unidades = [
-    { u: 'dias', rotulo: 'dias' },
-    { u: 'horas', rotulo: 'horas' },
-    { u: 'min', rotulo: 'minutos' },
-    { u: 'seg', rotulo: 'segundos' },
+    { u: 'dias', rotulo: 'dias', vazio: '000' },
+    { u: 'horas', rotulo: 'horas', vazio: '00' },
+    { u: 'min', rotulo: 'minutos', vazio: '00' },
+    { u: 'seg', rotulo: 'segundos', vazio: '00' },
 ] as const;
 ---
 
@@ -17,9 +25,9 @@ const unidades = [
         <p class="contagem__rotulo" id="contagem-titulo" data-rotulo>Faltam</p>
 
         <div class="contagem__grade">
-            {unidades.map(({ u, rotulo }) => (
+            {unidades.map(({ u, rotulo, vazio }) => (
                 <div class="contagem__cel">
-                    <span class="contagem__n tabular" data-u={u}>—</span>
+                    <span class="contagem__n tabular" data-u={u}>{vazio}</span>
                     <span class="contagem__r">{rotulo}</span>
                 </div>
             ))}

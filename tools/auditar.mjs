@@ -85,6 +85,36 @@ if (suspeitos.length) {
     );
 }
 
+// --- travessão no texto publicado (task 11 §3) ---
+//
+// Roda sobre o HTML renderizado, não sobre `src/`: é o que o convidado recebe, e assim
+// pega de uma vez o texto do Astro, o que vem da planilha e o embutido no JS inline.
+// Comentário de código não gera falso positivo porque o build minifica CSS e JS inline,
+// e comentário de `.astro` nunca chega ao HTML.
+const TRAVESSAO = '—';
+const comTravessao = [];
+for (const h of htmls) {
+    const texto = fs.readFileSync(h, 'utf8');
+    const ocorrencias = [...texto.matchAll(new RegExp(TRAVESSAO, 'g'))];
+    if (ocorrencias.length === 0) continue;
+    comTravessao.push({
+        f: h,
+        n: ocorrencias.length,
+        // Trecho ao redor da primeira, para não obrigar a caçar no HTML minificado.
+        trecho: texto.slice(Math.max(0, ocorrencias[0].index - 45), ocorrencias[0].index + 45),
+    });
+}
+
+if (comTravessao.length) {
+    const total = comTravessao.reduce((s, x) => s + x.n, 0);
+    falhas.push(
+        `${total} travessão(ões) no texto publicado (task 11 §3). Use vírgula, ` +
+            `dois-pontos ou ponto final:\n` +
+            comTravessao.map((x) => `    ${x.f} (${x.n}×): ...${x.trecho}...`).join('\n'),
+    );
+}
+nota.push(`travessões no html: ${comTravessao.reduce((s, x) => s + x.n, 0)}`);
+
 // --- resultado ---
 console.log('Auditoria de orçamento\n' + nota.map((n) => `  ${n}`).join('\n'));
 
