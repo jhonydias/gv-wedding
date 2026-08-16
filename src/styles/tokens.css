@@ -80,7 +80,22 @@
     --calha: clamp(1.25rem, 5vw, 5rem);
     --largura-max: 78rem;
     --largura-texto: 34rem; /* ~68 caracteres */
+    /*
+     * DOIS raios, com escopo declarado. Task 14 §2.
+     *
+     * `--raio` governa as superfícies EDITORIAIS, que são quase todas: seções, avisos,
+     * campos, botões, miniaturas. O quase-reto é decisão da task 02 e não muda.
+     *
+     * `--raio-produto` existe só para a superfície de COMÉRCIO: o card de presente e o
+     * modal de pagamento que o continua. Não é brecha para escapar do contrato: um card
+     * de produto é lido como produto porque segue a convenção de card de produto, e a
+     * página de presentes é a única do site com essa classe de objeto.
+     *
+     * Não vazar para botão, campo, nav ou seção. E não subir para 24px: aí deixa de ser
+     * "produto" e vira "app", que é o que a task 02 recusou.
+     */
     --raio: 2px; /* quase reto: editorial, não "app" */
+    --raio-produto: 14px; /* SÓ card de presente e modal Pix */
 
     /*
      * NÃO criar um token `--barra: calc(100vw - 100%)` para descontar a barra de rolagem.

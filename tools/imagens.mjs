@@ -141,6 +141,31 @@ console.log(
         (orfaos ? `, ${orfaos} órfã(s) removida(s)` : ''),
 );
 
+/*
+ * Imagem repetida entre presentes — task 14 §5.1.
+ *
+ * A deduplicação acima é certa para banda, e era silenciosa: no catálogo de hoje as 20
+ * linhas da planilha apontam para a MESMA URL, então a página mostra o mesmo jogo de taças
+ * em todos os cards, inclusive no da geladeira. Isso só era descoberto olhando o site.
+ *
+ * Aviso, não erro: repetir imagem entre dois itens irmãos pode ser legítimo, e link torto
+ * na planilha não pode travar o deploy.
+ */
+const distintas = porUrl.size;
+console.log(`${distintas} imagem(ns) distinta(s) para ${catalogo.length} presente(s)`);
+
+const repetidas = [...porUrl.entries()].filter(([, slugs]) => slugs.length > 1);
+if (repetidas.length) {
+    console.warn(
+        `\n⚠️  ${repetidas.length} imagem(ns) usada(s) por mais de um presente. ` +
+            `Card de produto com a foto de outro produto não vende:`,
+    );
+    for (const [url, slugs] of repetidas) {
+        console.warn(`  ${slugs.length} presentes: ${slugs.join(', ')}`);
+        console.warn(`    ${url}`);
+    }
+}
+
 if (semImagem.length) {
     console.warn(`\n${semImagem.length} sem URL na planilha (usarão placeholder da marca):`);
     console.warn(`  ${semImagem.join(', ')}`);

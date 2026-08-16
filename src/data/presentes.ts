@@ -25,6 +25,13 @@ export interface Presente {
     descricao?: string;
     /** URL de origem da imagem, como está na planilha. */
     imagem?: string;
+    /**
+     * Quantas pessoas podem dar ESTE presente, cada uma pagando `valor`. Task 14 §1.5.
+     *
+     * Vinha da planilha desde a task 10 e era descartado aqui, então o card mostrava
+     * "R$ 95" sem dizer que eram 3 cotas de R$ 95. Ausente ou inválido vira 1.
+     */
+    cotas: number;
 }
 
 /** Formato do JSON congelado — espelha o que `?acao=catalogo` devolve. */
@@ -72,6 +79,7 @@ export const PRESENTES: readonly Presente[] = (catalogo as ItemCatalogo[])
         faixa: p.faixa as Faixa,
         descricao: p.descricao || undefined,
         imagem: p.imagem || undefined,
+        cotas: Number(p.cotas) > 0 ? Number(p.cotas) : 1,
     }));
 
 /** Formata em BRL. Nunca concatenar 'R$ ' + n. */

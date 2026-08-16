@@ -90,9 +90,9 @@ const itens = configurado
                                     <Image
                                         src={imagemDe(p.slug)!}
                                         alt={p.nome}
-                                        width={400}
-                                        widths={[200, 400]}
-                                        sizes="(max-width: 40rem) 45vw, 200px"
+                                        width={600}
+                                        widths={[300, 600]}
+                                        sizes="(max-width: 40rem) 90vw, 300px"
                                         loading="lazy"
                                         decoding="async"
                                         quality={70}
@@ -101,21 +101,40 @@ const itens = configurado
                                     <span class="presente__marca" aria-hidden="true" set:html={amp} />
                                 )}
                             </div>
-                            <h3 class="presente__nome">{p.nome}</h3>
-                            {p.descricao && <p class="presente__desc">{p.descricao}</p>}
-                            <p class="presente__valor tabular">{emReais(p.valor)}</p>
-                            <button
-                                type="button"
-                                class="botao botao--primario presente__botao"
-                                data-presente
-                                data-nome={p.nome}
-                                data-valor={emReais(p.valor)}
-                                data-codigo={p.codigo}
-                                data-qr={p.qr}
-                                data-whatsapp={p.whatsapp}
-                            >
-                                Presentear
-                            </button>
+
+                            <div class="presente__corpo">
+                                <h3 class="presente__nome">{p.nome}</h3>
+                                {p.descricao && <p class="presente__desc">{p.descricao}</p>}
+                                <p class="presente__valor tabular">{emReais(p.valor)}</p>
+
+                                {/*
+                                    Cotas e disponibilidade (task 14 §1.5). O texto inicial só
+                                    aparece quando há mais de uma cota; o `status.ts` o
+                                    substitui por "restam N de M" se o backend responder.
+                                    Se a rede falhar, fica como está: nunca inventar número.
+                                */}
+                                <p
+                                    class="presente__cotas"
+                                    data-cotas
+                                    data-total={p.cotas}
+                                    hidden={p.cotas <= 1}
+                                >
+                                    {p.cotas} cotas disponíveis
+                                </p>
+
+                                <button
+                                    type="button"
+                                    class="botao botao--primario presente__botao"
+                                    data-presente
+                                    data-nome={p.nome}
+                                    data-valor={emReais(p.valor)}
+                                    data-codigo={p.codigo}
+                                    data-qr={p.qr}
+                                    data-whatsapp={p.whatsapp}
+                                >
+                                    Presentear
+                                </button>
+                            </div>
                         </li>
                     ))}
                 </ul>
@@ -179,38 +198,90 @@ const itens = configurado
         color: var(--texto-suave);
     }
 
+    /*
+     * 15rem, não 13rem: com a foto quadrada e dominante, a coluna estreita espremia o
+     * produto de volta ao tamanho de selo. O `gap` sobe para --e-3 porque agora os cards
+     * têm sombra, e com 16px as sombras dos vizinhos se encostavam.
+     */
     .grade {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
-        gap: var(--e-2);
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+        gap: var(--e-3);
         list-style: none;
         margin: 0;
         padding: 0;
     }
 
+    /*
+     * O card usa --raio-produto, e é junto com o modal Pix a ÚNICA superfície do site
+     * autorizada a isso (tokens.css). `overflow: hidden` é o que faz a foto respeitar os
+     * cantos de cima, já que ela sangra até a borda.
+     */
     .presente {
         display: flex;
         flex-direction: column;
-        gap: 0.3rem;
-        padding: var(--e-3);
         background: var(--bg-alt);
-        border-radius: var(--raio);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-produto);
+        overflow: hidden;
+        box-shadow:
+            0 1px 2px color-mix(in srgb, var(--oliva) 8%, transparent),
+            0 6px 18px color-mix(in srgb, var(--oliva) 7%, transparent);
+        transition: box-shadow var(--dur-media) var(--ease-saida);
+    }
+    .presente:hover,
+    .presente:focus-within {
+        box-shadow:
+            0 2px 4px color-mix(in srgb, var(--oliva) 10%, transparent),
+            0 14px 32px color-mix(in srgb, var(--oliva) 12%, transparent);
     }
 
+    /*
+     * FLEX, não grid. Mesma causa raiz da task 11 §2.2: com `place-items: center` a faixa
+     * da grade é dimensionada pelo conteúdo, o bloco contendo da imagem fica com altura
+     * indefinida e o `block-size: 100%` dela é descartado. Medido antes da correção:
+     * a foto renderizava 188,8×170,4 num slot de 188,8×141,6 e **28,8px eram cortados**
+     * (16,9% da imagem), 55px em 470px de viewport. O `object-fit: contain` nunca chegava
+     * a atuar, porque a caixa da imagem não estava limitada em altura.
+     *
+     * Quadrado, não 4/3: foto de e-commerce é quase sempre quadrada, e o 4/3 deitado
+     * desperdiçava altura no eixo em que o produto costuma ser mais alto.
+     *
+     * Fundo BRANCO de propósito: as fotos são recortes de marketplace sobre branco puro.
+     * Sobre creme ou areia, o que aparecia era o retângulo branco da foto, não o produto.
+     * Assumindo o branco, o plano se funde com a foto e sobra só o objeto. Funciona para
+     * qualquer foto de loja e não depende de recorte manual (task 14 §4.2).
+     */
     .presente__foto {
-        display: grid;
-        place-items: center;
-        aspect-ratio: 4 / 3;
-        margin-block-end: var(--e-2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1 / 1;
+        padding: var(--e-2);
         overflow: hidden;
-        background: color-mix(in srgb, var(--creme) 70%, var(--areia));
-        border-radius: var(--raio);
+        background: #fff;
     }
     .presente__foto :global(img) {
-        inline-size: 100%;
-        block-size: 100%;
+        max-inline-size: 100%;
+        max-block-size: 100%;
+        inline-size: auto;
+        block-size: auto;
         /* `contain`: são fotos de produto com fundo branco. `cover` cortaria o objeto. */
         object-fit: contain;
+        transition: scale var(--dur-media) var(--ease-saida);
+    }
+    .presente:hover .presente__foto :global(img),
+    .presente:focus-within .presente__foto :global(img) {
+        /* Mesmo valor da galeria e dos atalhos: só `scale`, nada que recalcule layout. */
+        scale: 1.04;
+    }
+
+    .presente__corpo {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        gap: 0.3rem;
+        padding: var(--e-3);
     }
 
     /* Placeholder da marca: sem URL na planilha, ou download que falhou. */
@@ -235,14 +306,38 @@ const itens = configurado
         font-family: var(--fonte-display);
         font-size: var(--t-lg);
     }
+    /* Sinal de escassez, não alarme: mesmo corpo da descrição, sem cor de alerta. */
+    .presente__cotas {
+        font-size: var(--t-xs);
+        letter-spacing: 0.06em;
+        color: var(--texto-suave);
+    }
     .presente__botao {
+        /* `auto` empurra o botão para o rodapé do card, alinhando os botões de todas as
+           colunas mesmo com descrições de alturas diferentes. */
         margin-block-start: auto;
         inline-size: 100%;
+        /* O botão DENTRO do card de produto acompanha o card. Os outros botões do site
+           continuam em --raio (tokens.css). */
+        border-radius: var(--raio-produto);
     }
 
     /* Presente já dado: marcado, não escondido. */
+    /*
+     * Presente já dado: marcado, não escondido (task 07). Quem recebeu o link de um item
+     * específico precisa entender o que houve, e não achar que a página quebrou.
+     * Perde a elevação: fica no plano, sem convidar ao clique.
+     */
     .presente[data-indisponivel] {
         background: color-mix(in srgb, var(--bg-alt) 55%, var(--bg));
+        box-shadow: none;
+    }
+    .presente[data-indisponivel] .presente__foto {
+        opacity: 0.55;
+    }
+    .presente[data-indisponivel]:hover .presente__foto :global(img),
+    .presente[data-indisponivel]:focus-within .presente__foto :global(img) {
+        scale: 1;
     }
     .presente[data-indisponivel] .presente__nome,
     .presente[data-indisponivel] .presente__valor {
@@ -273,7 +368,8 @@ const itens = configurado
         inline-size: min(92vw, 26rem);
         padding: var(--e-4);
         border: 0;
-        border-radius: var(--raio);
+        /* Continua o mesmo objeto do card: acompanha --raio-produto (tokens.css). */
+        border-radius: var(--raio-produto);
         background: var(--creme);
         color: var(--oliva);
         text-align: center;

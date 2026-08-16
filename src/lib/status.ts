@@ -53,11 +53,31 @@ export async function aplicarStatus(): Promise<void> {
         const id = card.dataset.presenteId;
         if (!id) continue;
         const st = mapa[id];
-        if (!st || st.disponivel) continue;
+        if (!st) continue;
+
+        /*
+         * Cotas restantes — task 14 §1.5.
+         *
+         * O backend já respondia isto desde a task 10 e a página descartava. É a
+         * informação mais persuasiva da lista, e só aparece quando o servidor respondeu:
+         * se o fetch falhar, a função já saiu lá em cima e o card fica com o texto
+         * estático. Nunca mostrar número inventado, e nunca mostrar zero.
+         */
+        const cotas = card.querySelector<HTMLElement>('[data-cotas]');
+        const total = Number(cotas?.dataset.total ?? 0);
+        const restam = st.cotasRestantes;
+        // "restam 3 de 3" não é escassez, é ruído: só troca o texto quando alguém já deu.
+        if (cotas && total > 1 && restam !== null && restam > 0 && restam < total) {
+            cotas.textContent = `restam ${restam} de ${total}`;
+            cotas.hidden = false;
+        }
+
+        if (st.disponivel) continue;
 
         // Indisponível NÃO some da lista: quem recebeu o link de um item específico
         // precisa entender o que aconteceu, e não achar que a página quebrou.
         card.setAttribute('data-indisponivel', '');
+        if (cotas) cotas.hidden = true;
         const botao = card.querySelector<HTMLButtonElement>('[data-presente]');
         if (botao) {
             botao.disabled = true;
