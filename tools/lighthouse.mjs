@@ -14,7 +14,7 @@ const BASE =
         ? process.argv[process.argv.indexOf('--url') + 1]
         : 'http://localhost:4321/gv-wedding';
 
-const ROTAS = ['/', '/historia', '/galeria', '/confirmar', '/presentes', '/informacoes'];
+const ROTAS = ['/', '/historia', '/pre-wedding', '/confirmar', '/presentes', '/informacoes'];
 
 /** Páginas com `noindex` intencional — a nota de SEO não se aplica a elas. */
 const NOINDEX = ['/historia', '/confirmar'];

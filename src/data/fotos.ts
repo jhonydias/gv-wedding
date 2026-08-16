@@ -1,5 +1,5 @@
 /**
- * Manifesto da galeria — task 05.
+ * Manifesto das fotos do pré-wedding. Task 05, renomeado na task 11.
  *
  * A ordem do array É a ordem exibida e a ordem de navegação do lightbox.
  * Curada: começa e termina forte, e afasta os quadros quase idênticos

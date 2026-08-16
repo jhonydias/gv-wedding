@@ -141,7 +141,7 @@ Rode **`instalarGatilhos()`** uma vez. Cria um gatilho diário às 9h que dispar
 | `d30` | 30 dias antes | local, mapa, traje, hospedagem |
 | `d7` | 7 dias antes | horário e endereço |
 | `d1` | véspera | "é amanhã" e link do Uber |
-| `pos` | 3 dias depois | agradecimento e galeria |
+| `pos` | 3 dias depois | agradecimento e link do pré-wedding |
 
 ### Regras que o código garante
 

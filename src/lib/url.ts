@@ -1,11 +1,11 @@
 /**
  * Resolve um caminho interno contra o `base` do Astro.
  *
- * Por que isso existe: `href="/galeria"` funciona em dev (onde o site é servido da raiz) e
- * quebra em produção (onde ele mora em /gv-wedding/). É o pior tipo de bug — só aparece
+ * Por que isso existe: `href="/pre-wedding"` funciona em dev (onde o site é servido da raiz)
+ * e quebra em produção (onde ele mora em /gv-wedding/). É o pior tipo de bug — só aparece
  * depois do deploy. Todo link interno tem que passar por aqui.
  *
- *   rota('/galeria')  →  '/gv-wedding/galeria'
+ *   rota('/pre-wedding')  →  '/gv-wedding/pre-wedding'
  *   rota('/')         →  '/gv-wedding/'
  */
 export function rota(caminho: string): string {

@@ -614,7 +614,7 @@ function corpoHtml_(chave, l, cfg) {
                 btn('Chamar um carro', info);
         case 'pos':
             return '<p>Obrigado por estar com a gente, ' + nome + '. Foi tudo mais bonito com você lá.</p>' +
-                btn('Ver as fotos', cfg.site_url + '/galeria');
+                btn('Ver as fotos', cfg.site_url + '/pre-wedding');
         default:
             return '<p>Oi, ' + nome + '!</p>';
     }
