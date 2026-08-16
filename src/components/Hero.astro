@@ -1,25 +1,85 @@
 ---
 import { Image } from 'astro:assets';
 import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+import { HERO, ALT_HERO } from '../data/hero';
 import amp from '../assets/marca/e-comercial.svg?raw';
-import foto from '../assets/fotos/gv-02-catedral-beijo.jpg';
 
 const { local } = EVENTO;
+
+const arquivos = import.meta.glob<{ default: ImageMetadata }>(
+    '../assets/fotos/*.{jpg,jpeg,png,webp}',
+    { eager: true },
+);
+
+const imagemDe = (nome: string): ImageMetadata | null => {
+    const chave = Object.keys(arquivos).find((k) => k.endsWith(`/${nome}`));
+    return chave ? (arquivos[chave]?.default ?? null) : null;
+};
+
+/**
+ * ⚠️ Não ler `imagem.width`/`imagem.height` aqui nem no markup. A task 11 §3.2 mediu que
+ * tocar nessas propriedades do ImageMetadata faz o Astro emitir os JPEGs ORIGINAIS no
+ * dist: 159 arquivos em vez de 124, o maior com 734 KB contra o teto de 250 KB.
+ */
+const primeira = imagemDe(HERO[0]!.arquivo);
+const extras = HERO.slice(1)
+    .map((f) => ({ ...f, imagem: imagemDe(f.arquivo) }))
+    .filter((f): f is typeof f & { imagem: ImageMetadata } => f.imagem !== null);
 ---
 
 <section class="hero" aria-labelledby="hero-titulo">
-    <div class="hero__fundo">
-        <Image
-            src={foto}
-            alt="Gisele e Victor se beijando numa rua do centro histórico, com a torre da catedral ao fundo"
-            widths={[640, 1024, 1600]}
-            width={1024}
-            sizes="(max-width: 48rem) 150vw, 100vw"
-            loading="eager"
-            fetchpriority="high"
-            quality={72}
-        />
+    <div class="hero__fundo" data-hero-fundo>
+        {
+            primeira && (
+                <Image
+                    class="hero__foto hero__foto--ativa"
+                    src={primeira}
+                    alt={ALT_HERO}
+                    widths={[640, 1024, 1600]}
+                    width={1024}
+                    sizes="(max-width: 48rem) 150vw, 100vw"
+                    loading="eager"
+                    fetchpriority="high"
+                    quality={62}
+                    style={`object-position: ${HERO[0]!.foco}`}
+                />
+            )
+        }
+
+        {/*
+            As demais ficam dentro de <template> (task 13 §1).
+            Conteúdo de <template> é inerte: o parser NÃO baixa essas imagens. É a única
+            forma de garantir que a primeira tela carregue UMA foto, já que `loading="lazy"`
+            não adia nada aqui — o hero ocupa a viewport inteira, e imagem dentro da
+            viewport com lazy é baixada na hora.
+
+            O `src/lib/hero.ts` clona uma de cada vez, depois do `load`, e só troca quando a
+            próxima terminou de baixar. A margem de 40 ms que a home tem no orçamento de LCP
+            (task 02 §6) não sobrevive a uma segunda foto no caminho crítico.
+        */}
+        <template data-hero-extras>
+            {extras.map((f) => (
+                <Image
+                    class="hero__foto"
+                    src={f.imagem}
+                    alt=""
+                    aria-hidden="true"
+                    widths={[640, 1024, 1600]}
+                    width={1024}
+                    sizes="(max-width: 48rem) 150vw, 100vw"
+                    loading="lazy"
+                    decoding="async"
+                    quality={62}
+                    style={`object-position: ${f.foco}`}
+                />
+            ))}
+        </template>
     </div>
+
+    <script>
+        import { heroFotos } from '../lib/hero';
+        heroFotos();
+    </script>
 
     <div class="hero__conteudo wrap" data-hero-conteudo>
         {/*
@@ -93,15 +153,48 @@ const { local } = EVENTO;
         inset: 0;
         z-index: 0;
     }
-    .hero__fundo :global(img) {
+
+    /*
+     * As fotos ficam EMPILHADAS e a fusão é só em `opacity` (task 02 §5: nada que dispare
+     * layout). O scrim é o `::after` deste contêiner, então continua único e por cima de
+     * todas: não duplicar escurecimento por camada.
+     *
+     * `linear`, e não o `--ease-saida`: numa fusão cruzada, curva com aceleração faz as
+     * duas imagens ficarem em opacidade intermediária ao mesmo tempo e a soma cai, abrindo
+     * um vale de luminosidade no meio da troca. Linear mantém o brilho estável.
+     *
+     * `object-position` vem por foto, no atributo `style`, e não daqui: cada quadro tem o
+     * casal numa altura diferente (ver src/data/hero.ts).
+     */
+    .hero__fundo :global(.hero__foto) {
+        position: absolute;
+        inset: 0;
         inline-size: 100%;
         block-size: 100%;
         /* Nada de max-block-size aqui: era o que travava a foto em 544px e deixava
            uma faixa de fundo exposta embaixo no mobile. */
         object-fit: cover;
-        /* O casal está na metade de baixo do quadro original. Em tela larga o recorte é
-           vertical, então ancorar em 30% cortava os dois fora. 58% mantém os rostos. */
-        object-position: center 58%;
+        opacity: 0;
+        transition: opacity 1400ms linear;
+    }
+
+    /*
+     * A primeira nasce ativa NO HTML, não pelo JS: com JS desligado, lento ou quebrado, o
+     * hero aparece completo e com a foto certa.
+     */
+    .hero__fundo :global(.hero__foto--ativa) {
+        opacity: 1;
+    }
+
+    /*
+     * Movimento reduzido: sem transição. O `hero.ts` já sai antes de instalar qualquer
+     * timer, então não há troca nenhuma; isto é a segunda linha de defesa, para o caso de
+     * a classe ser trocada por outro caminho.
+     */
+    @media (prefers-reduced-motion: reduce) {
+        .hero__fundo :global(.hero__foto) {
+            transition: none;
+        }
     }
 
     /*
