@@ -71,12 +71,12 @@ const PALETA = [
                 <span class="mapa__selo">Abrir no mapa</span>
             </a>
 
-            {
-                EVENTO.termino === null && (
-                    <p class="pendencia">TODO: horário de término, e se cerimônia e recepção
-                    são no mesmo espaço.</p>
-                )
-            }
+            {/*
+                Os noivos decidiram em 16/08/2026 NÃO informar horário de término. Por isso
+                aqui não há pendência: `termino` é `null` de propósito. Se um dia for
+                preenchido em `event.ts`, a linha aparece sozinha.
+            */}
+            {EVENTO.termino && <p class="local__quando">Até {EVENTO.termino}</p>}
         </div>
     </section>
 
@@ -105,12 +105,34 @@ const PALETA = [
             </p>
 
             <h3 class="sub">E se chover?</h3>
-            <p class="pendencia">
-                TODO: confirmar se o Espaço FRA é coberto ou tem área externa.
-                <strong>Não escrever este bloco antes da resposta.</strong> Janeiro é o auge da
-                estação chuvosa em Belém, e afirmar que a festa é abrigada sem checar é o tipo de
-                erro que só aparece no dia, debaixo de chuva.
-            </p>
+            {/*
+                O texto sai de `EVENTO.coberto`, nunca digitado aqui (regra 4 do README das
+                tasks). Os três estados existem de propósito: enquanto for `null`, a página
+                mostra a pendência em vez de afirmar qualquer coisa. Afirmar que a festa é
+                abrigada sem checar é o erro que só aparece no dia, debaixo de chuva.
+
+                Respondido pelos noivos em 16/08/2026: o Espaço FRA é coberto.
+            */}
+            {
+                EVENTO.coberto === null ? (
+                    <p class="pendencia">
+                        TODO: confirmar se o Espaço FRA é coberto ou tem área externa.
+                        <strong>Não escrever este bloco antes da resposta.</strong>
+                    </p>
+                ) : EVENTO.coberto ? (
+                    <p class="texto-corpo">
+                        Pode chover à vontade: o espaço é coberto e a festa inteira acontece
+                        abrigada. Janeiro é o auge da estação chuvosa em Belém, então vale sair
+                        de casa com guarda-chuva pelo caminho, mas ele fica na porta.
+                    </p>
+                ) : (
+                    <p class="texto-corpo">
+                        O espaço tem área externa, e janeiro é o auge da estação chuvosa em
+                        Belém. Traga guarda-chuva e escolha um sapato que não sofra com piso
+                        molhado.
+                    </p>
+                )
+            }
         </div>
     </section>
 

@@ -15,10 +15,12 @@ export interface Local {
     /** Endereço de uma linha — é o que vai nos deep links de Uber/Maps (task 08). */
     endereco: string;
     /**
-     * TODO(factual): obter no mapa — botão direito no ponto da entrada → copiar coordenadas.
-     * Preencher com 6 casas decimais. NÃO estimar: todo link de Uber, Google Maps, Waze e
-     * Apple Maps deriva daqui, e um erro manda os convidados para o lugar errado no dia.
-     * Enquanto for null, a task 08 deve cair para busca por endereço em texto.
+     * Coordenadas da entrada. Todo link de Uber, Google Maps, Waze e Apple Maps deriva
+     * daqui (`src/lib/mapas.ts`), então um erro aqui manda os convidados para o lugar
+     * errado no dia. Enquanto for null, os links caem para busca por endereço em texto.
+     *
+     * Informadas pelos noivos em 16/08/2026. Confirmar uma vez no mapa que o pino cai na
+     * ENTRADA do Espaço FRA, e não no meio da quadra.
      */
     lat: number | null;
     lng: number | null;
@@ -37,9 +39,12 @@ export interface Evento {
      */
     quando: string;
     local: Local;
-    /** TODO(factual): horário de término. */
+    /**
+     * Horário de término. **Decidido em 16/08/2026: não será informado.** Fica `null` de
+     * propósito, e não é pendência. Nenhuma página deve inventar um horário de fim.
+     */
     termino: string | null;
-    /** TODO(factual): o Espaço FRA é coberto? Bloqueia o texto de chuva da task 08. */
+    /** O Espaço FRA é coberto? Respondido pelos noivos em 16/08/2026. */
     coberto: boolean | null;
     /** TODO(factual): prazo de confirmação de presença (task 06). */
     rsvpAte: string | null;
@@ -59,12 +64,12 @@ export const EVENTO: Evento = {
         uf: 'PA',
         cep: '66055-000',
         endereco: 'R. Cônego Jerônimo Pimentel, 124 - Umarizal, Belém - PA, 66055-000',
-        lat: null,
-        lng: null,
+        lat: -1.443622,
+        lng: -48.488787,
     },
 
     termino: null,
-    coberto: null,
+    coberto: true,
     rsvpAte: null,
 };
 
