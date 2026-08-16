@@ -9,6 +9,8 @@
 interface ItemGaleria {
     grande: string;
     alt: string;
+    largura: number;
+    altura: number;
 }
 
 /**
@@ -20,6 +22,8 @@ function lerItens(): ItemGaleria[] {
     return [...document.querySelectorAll<HTMLElement>('[data-foto]')].map((b) => ({
         grande: b.dataset.grande ?? '',
         alt: b.querySelector('img')?.alt ?? '',
+        largura: Number(b.dataset.gw) || 0,
+        altura: Number(b.dataset.gh) || 0,
     }));
 }
 
@@ -40,6 +44,16 @@ export function lightbox(): void {
     const pintar = (): void => {
         const f = itens[i];
         if (!f) return;
+
+        // Dimensões ANTES do src: dão a proporção ao browser sem esperar a decodificação,
+        // e o palco para de colapsar entre uma foto e outra. Some na troca entre os
+        // retratos 2:3 e as duas paisagens 3:2, que é onde o salto era visível.
+        // Task 11 §2.5.2. O CSS continua mandando no tamanho final.
+        if (f.largura > 0 && f.altura > 0) {
+            img.width = f.largura;
+            img.height = f.altura;
+        }
+
         img.src = f.grande;
         img.alt = f.alt;
         contador.textContent = `${i + 1} de ${itens.length}`;

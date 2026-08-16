@@ -30,12 +30,20 @@ const faltando = base.filter((it) => it.imagem === null).map((it) => it.foto.arq
  *
  * Nota: comentário aqui e não junto ao atributo — `/* *\/` dentro da lista de atributos
  * é interpretado como atributo pelo parser do Astro e quebra a tipagem.
+ *
+ * `grande.attributes` traz `width` e `height` da variante já processada. É de lá que saem
+ * os `data-gw`/`data-gh` do botão (task 11 §2.5.2). NÃO derivar isso lendo `imagem.width`:
+ * tocar nessas propriedades do ImageMetadata faz o Astro emitir os 35 JPEGs ORIGINAIS no
+ * dist. Medido: 159 arquivos de imagem em vez de 124, o maior com 734 KB, contra o teto de
+ * 250 KB da task 02 — e nenhum deles referenciado por HTML nenhum. Peso morto puro.
  */
+const LARGURA_GRANDE = 1200;
+
 const itens = await Promise.all(
     base.map(async (it) => ({
         ...it,
         grande: it.imagem
-            ? await getImage({ src: it.imagem, width: 1200, format: 'webp', quality: 62 })
+            ? await getImage({ src: it.imagem, width: LARGURA_GRANDE, format: 'webp', quality: 62 })
             : null,
     })),
 );
@@ -67,6 +75,8 @@ const itens = await Promise.all(
                             type="button"
                             data-foto={i}
                             data-grande={grande.src}
+                            data-gw={grande.attributes.width}
+                            data-gh={grande.attributes.height}
                             class="galeria__botao"
                         >
                             <Image
@@ -172,8 +182,15 @@ const itens = await Promise.all(
 
     /* --- Lightbox --- */
     .lightbox {
-        inline-size: 100vw;
-        max-inline-size: 100vw;
+        /*
+         * 100%, não 100vw: o <dialog> modal tem a viewport como bloco contendo, então dá no
+         * mesmo — exceto quando há barra de rolagem clássica, em que 100vw a inclui e o
+         * diálogo fica mais largo que a tela. Hoje isso não aparece só porque `abrir()`
+         * tira a barra do <body> e compensa com padding. Acoplamento invisível entre CSS e
+         * JS; com 100% o CSS se sustenta sozinho. Task 11 §2.5.4.
+         */
+        inline-size: 100%;
+        max-inline-size: 100%;
         block-size: 100svh;
         max-block-size: 100svh;
         padding: 0;
@@ -186,12 +203,31 @@ const itens = await Promise.all(
         backdrop-filter: blur(6px);
     }
 
+    /*
+     * FLEX, não grid. Task 11 §2.2.
+     *
+     * Com `display: grid; place-items: center` a linha implícita é dimensionada pelo
+     * conteúdo, o bloco contendo da foto fica com altura indefinida e o `max-block-size:
+     * 100%` dela é resolvido como `none`. O DevTools mostra `100%` e não limita nada:
+     * medido em 1366×768, a foto renderizava 1200×1800 e 1096px ficavam fora da tela,
+     * sem barra de rolagem porque o <dialog> é `overflow: hidden`. 61% da foto invisível.
+     *
+     * Num contêiner flex a porcentagem resolve contra a content box do contêiner, que
+     * aqui tem altura definida. Não trocar de volta, e não tentar resolver com
+     * `place-items: stretch` + `block-size: 100%`: também é porcentagem contra a mesma
+     * área indefinida, e medido fica PIOR (1132px fora da tela).
+     *
+     * Padding assimétrico no eixo de bloco: 5vw no vertical desperdiçava altura, que é
+     * justamente o que falta num laptop. O `--e-5` embaixo reserva a faixa do contador.
+     */
     .lightbox__palco {
-        display: grid;
-        place-items: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         block-size: 100%;
         margin: 0;
-        padding: clamp(var(--e-3), 5vw, var(--e-5));
+        padding-inline: clamp(var(--e-3), 5vw, var(--e-5));
+        padding-block: var(--e-3) var(--e-5);
     }
     .lightbox__palco img {
         max-inline-size: 100%;
