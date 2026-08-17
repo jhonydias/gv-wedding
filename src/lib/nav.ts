@@ -121,9 +121,23 @@ function painelMobile(barra: HTMLElement): void {
         a.addEventListener('click', () => fechar(false)),
     );
 
-    // Ao voltar para desktop com o painel aberto, desfaz o estado travado.
-    window.matchMedia('(min-width: 48rem)').addEventListener('change', (e) => {
-        if (e.matches && aberto) fechar(false);
+    /*
+     * Ao voltar para desktop com o painel aberto, desfaz o estado travado.
+     *
+     * ⚠️ 60rem, e NÃO 48rem. Este valor é o MESMO das duas media queries do `Nav.astro`
+     * (`.nav__hamburguer` aparece até 60rem, `.nav__painel` some a partir de 60.001rem).
+     * Se mudar lá, muda aqui.
+     *
+     * Com os 48rem que estavam aqui, quem saísse de uma largura entre 768px e 960px para
+     * além de 960px nunca cruzava o ponto observado, e o listener não disparava. Medido:
+     * abrindo a 900px e redimensionando para 1100px, o CSS escondia o painel mas o estado
+     * continuava aberto, deixando `overflow: hidden` no <body> e `inert` no #conteudo. A
+     * página ficava sem rolagem, sem clique e invisível para leitor de tela, com o
+     * hambúrguer que a destravaria fora da tela: só recarregando. Task 15 §2.
+     */
+    const naFaixaDoMenu = window.matchMedia('(max-width: 60rem)');
+    naFaixaDoMenu.addEventListener('change', (e) => {
+        if (!e.matches && aberto) fechar(false);
     });
 
     fechar(false);

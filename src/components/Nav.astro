@@ -263,6 +263,11 @@ const { atual, sobreEscuro = false } = Astro.props;
         cursor: pointer;
     }
 
+    /*
+     * ⚠️ 60rem é o ponto de troca entre a nav horizontal e o painel, e ele é DUPLICADO em
+     * `src/lib/nav.ts`, que precisa fechar o painel ao passar para desktop. Mudar aqui sem
+     * mudar lá deixa a página travada em `overflow: hidden` e `inert` (task 15 §2).
+     */
     @media (max-width: 60rem) {
         .nav__desktop {
             display: none;
