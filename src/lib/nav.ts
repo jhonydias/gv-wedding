@@ -37,7 +37,9 @@ function estadoFixa(barra: HTMLElement): void {
  */
 function painelMobile(barra: HTMLElement): void {
     const botao = barra.querySelector<HTMLButtonElement>('[data-menu-abre]');
-    const painel = barra.querySelector<HTMLElement>('[data-menu-painel]');
+    // `document`, não `barra`: o painel mora FORA do <header> desde a task 15 §1.4, para
+    // não ficar dentro de um elemento que vira bloco contendo de `position: fixed`.
+    const painel = document.querySelector<HTMLElement>('[data-menu-painel]');
     const conteudo = document.querySelector<HTMLElement>('#conteudo');
     if (!botao || !painel) return;
 

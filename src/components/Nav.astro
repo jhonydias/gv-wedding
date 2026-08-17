@@ -54,32 +54,49 @@ const { atual, sobreEscuro = false } = Astro.props;
             <span class="sr-only">Abrir menu</span>
         </button>
     </div>
-
-    <div class="nav__painel" id="menu-painel" data-menu-painel hidden>
-        <nav aria-label="Principal (mobile)">
-            <ul>
-                {MENU.map((item) => (
-                    <li>
-                        {item.pronto ? (
-                            <a
-                                href={rota(item.href)}
-                                aria-current={item.href === atual ? 'page' : undefined}
-                            >
-                                {item.rotulo}
-                            </a>
-                        ) : (
-                            <span class="nav__link--breve" aria-disabled="true">
-                                {item.rotulo}
-                                <span class="sr-only"> (em breve)</span>
-                            </span>
-                        )}
-                    </li>
-                ))}
-            </ul>
-        </nav>
-        <button class="nav__fecha" type="button" data-menu-fecha>Fechar</button>
-    </div>
 </header>
+
+{/*
+    O painel fica FORA do <header>, de propósito. Task 15 §1.4.
+
+    Ele é `position: fixed; inset: 0`, e dentro da nav isso deixou de cobrir a viewport
+    assim que a barra ganhou `data-fixa`: o `backdrop-filter: blur(12px)` faz do elemento um
+    bloco contendo para descendentes `position: fixed`, e o painel passou a resolver o
+    `inset: 0` contra a barra. Medido em celular de 390×780: o painel abria com **109px** de
+    altura em vez de 780, e os itens vazavam por cima do conteúdo. Valia para todas as
+    rotas, bastava rolar 80px antes de abrir.
+
+    Mover para cá remove a dependência em vez de remover o gatilho: qualquer `transform`,
+    `filter` ou `will-change` que a nav ganhe depois traria o bug de volta, e a barra é
+    justamente o elemento mais propenso a ganhar efeito visual.
+
+    Continua neste componente para os estilos escopados do Astro valerem, e o
+    `aria-controls` do botão liga os dois por `id`, não por parentesco.
+*/}
+<div class="nav__painel" id="menu-painel" data-menu-painel hidden>
+    <nav aria-label="Principal (mobile)">
+        <ul>
+            {MENU.map((item) => (
+                <li>
+                    {item.pronto ? (
+                        <a
+                            href={rota(item.href)}
+                            aria-current={item.href === atual ? 'page' : undefined}
+                        >
+                            {item.rotulo}
+                        </a>
+                    ) : (
+                        <span class="nav__link--breve" aria-disabled="true">
+                            {item.rotulo}
+                            <span class="sr-only"> (em breve)</span>
+                        </span>
+                    )}
+                </li>
+            ))}
+        </ul>
+    </nav>
+    <button class="nav__fecha" type="button" data-menu-fecha>Fechar</button>
+</div>
 
 <style>
     .nav {
