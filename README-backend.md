@@ -95,7 +95,7 @@ Veja o resultado em **Execuções** (ícone de relógio) e na aba `Log`.
 
 > ⚠️ Sem "Qualquer pessoa" o front recebe **403**. É o erro nº 1 aqui.
 
-Confira com `SUA_URL/exec?acao=ping` — deve devolver `{"ok":true,"versao":"10.0",…}`.
+Confira com `SUA_URL/exec?acao=ping`: deve devolver `{"ok":true,"versao":"17.0",…}`.
 
 ---
 
@@ -214,6 +214,39 @@ faixas. É idempotente — rodar duas vezes não duplica. Para remover, **`limpa
 que apaga só o que ela inseriu.
 
 Depois de semear, rode `npm run catalogo` para o site enxergar.
+
+### Área dos noivos: `/noivos/presentes` (task 17)
+
+Os noivos criam, editam, tiram do site e apagam presentes pela tela
+`https://jhonydias.github.io/gv-wedding/noivos/presentes/`, com a senha dos noivos.
+O servidor deriva `id`, `faixa` e `ordem`; os noivos preenchem nome, valor, link da foto e
+quantas pessoas podem dar.
+
+**Depois de colar um `Code.gs` novo que tenha a task 17**, rode **`autorizarNoivos()`** uma
+vez no editor: ela usa `UrlFetchApp` (conferir o link da foto e disparar deploy), e o Google
+só pede essa autorização no editor. Sem isso, salvar presente falha.
+
+**Como o presente chega ao site:** o workflow `Catálogo` (`.github/workflows/catalogo.yml`)
+confere a cada 10 min se a planilha mudou em relação ao publicado e, se mudou, dispara o
+`Deploy`, que congela o catálogo antes do build. Na prática, **até ~30 min** (o GitHub atrasa
+cron). Para ~3 min, grave um token fino do GitHub (só este repositório, só *Actions: Read and
+write*) com `definirTokenGithub('…')`, rodando a partir de uma função temporária no editor.
+
+**Senha:** só o hash está no código. Para trocar: crie no editor
+`function trocar() { definirSenhaNoivos('nova-senha'); }`, rode, e **apague a função**.
+Cinco senhas erradas em 15 min bloqueiam a tela por 15 min (para todo mundo).
+
+**Regras que o servidor garante:**
+- o `id` nunca muda, nem se o nome mudar (é o `txid` do Pix e a chave dos pagamentos);
+- presente com **qualquer** pagamento, até cancelado, não pode ser apagado; só tirado do site;
+- cotas não ficam abaixo de quantos já pagaram;
+- duas pessoas editando o mesmo presente: a segunda recebe aviso de conflito;
+- todo presente apagado tem a linha inteira gravada na aba `Log` (é o "desfazer" manual).
+
+**Evite apagar linhas direto na planilha:** isso pula a proteção de pagamentos.
+
+> ⚠️ O GitHub **desliga workflow agendado** em repositório sem commit há 60 dias. Se os
+> presentes pararem de aparecer sozinhos: *Actions → Catálogo → Enable workflow*.
 
 ### Cadastrar presentes de verdade
 

@@ -21,8 +21,11 @@ export default defineConfig({
         sitemap({
             // /confirmar é formulário — não faz sentido indexar.
             // /historia sai enquanto não tiver conteúdo (a página já manda `noindex`).
+            // /noivos é a área dos noivos (task 17): nem sitemap, nem robots.txt.
             filter: (pagina) =>
-                !pagina.includes('/confirmar') && !pagina.includes('/historia'),
+                !pagina.includes('/confirmar') &&
+                !pagina.includes('/historia') &&
+                !pagina.includes('/noivos'),
         }),
     ],
 });

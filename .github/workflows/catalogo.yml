@@ -1,0 +1,61 @@
+name: Catálogo
+
+# Task 17: os noivos criam, editam e apagam presentes pela tela /noivos/presentes, que
+# grava na planilha. Este workflow confere a cada 10 min se o catálogo da planilha mudou
+# em relação ao publicado e, só se mudou, dispara o deploy.
+#
+# Separado do deploy.yml de propósito: lá o concurrency tem cancel-in-progress, e uma
+# verificação agendada cancelaria um deploy de push em andamento.
+#
+# O GitHub atrasa cron com frequência (10 a 30 min) e DESLIGA workflow agendado de
+# repositório público sem commit há 60 dias. Se os presentes pararem de aparecer
+# sozinhos, é a primeira coisa a olhar (Actions → Catálogo → Enable workflow).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: catalogo
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Só o catalogo.mjs (sem dependências, sem imagens): é leitura e comparação.
+      - name: Ler a planilha
+        id: ler
+        run: node tools/catalogo.mjs
+        env:
+          PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
+
+      - name: Comparar com o publicado
+        id: comparar
+        run: |
+          local=$(sha256sum src/data/catalogo.json | cut -c1-64)
+          remoto=$(curl -fsS "https://jhonydias.github.io/gv-wedding/catalogo-versao.txt?t=$(date +%s)" || echo nenhum)
+          echo "planilha: $local"
+          echo "no ar:    $remoto"
+          if [ "$local" = "$remoto" ]; then
+            echo "mudou=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "mudou=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publicar
+        if: steps.comparar.outputs.mudou == 'sim'
+        run: gh workflow run deploy.yml --ref main
+        env:
+          GH_TOKEN: ${{ github.token }}

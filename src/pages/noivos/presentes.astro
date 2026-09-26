@@ -1,0 +1,527 @@
+---
+/**
+ * Área dos noivos: criar, editar e apagar presentes. Task 17.
+ *
+ * A página é pública (o site é estático); a proteção é a senha, conferida no Apps Script
+ * a cada chamada. Fora da nav, fora do sitemap, `noindex`. NÃO listar no robots.txt:
+ * `Disallow` publicaria o endereço para quem ler o arquivo.
+ *
+ * Todo o comportamento está em `src/lib/admin-presentes.ts`, que só carrega aqui.
+ */
+import Base from '../../layouts/Base.astro';
+import { FAIXAS } from '../../data/presentes';
+import amp from '../../assets/marca/e-comercial.svg?raw';
+
+const endpoint = import.meta.env.PUBLIC_BACKEND_URL ?? '';
+const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })));
+---
+
+<Base
+    titulo="Área dos noivos · Presentes"
+    descricao="Cadastro de presentes de Gisele e Victor."
+    atual="/noivos/presentes"
+    naoIndexar
+>
+    <header class="cabeca inverso">
+        <div class="wrap">
+            <h1>Presentes</h1>
+            <p class="cabeca__apoio">Área dos noivos</p>
+        </div>
+    </header>
+
+    <section class="secao">
+        <div class="wrap" data-admin data-endpoint={endpoint} data-faixas={faixas}>
+            {
+                !endpoint && (
+                    <p class="alerta" role="alert">
+                        <strong>Endpoint não configurado.</strong> Defina{' '}
+                        <code>PUBLIC_BACKEND_URL</code> no ambiente.
+                    </p>
+                )
+            }
+
+            <!-- Passo 1: senha -->
+            <!-- method="dialog": fora de um <dialog>, o envio não navega. Sem isso, um toque
+                 antes de o script carregar faria GET com ?senha=... na URL. -->
+            <form class="entrar" data-entrar method="dialog" novalidate>
+                <div class="campo">
+                    <label for="senha">Senha dos noivos</label>
+                    <input
+                        id="senha"
+                        name="senha"
+                        type="password"
+                        autocomplete="current-password"
+                        autocapitalize="none"
+                        required
+                        aria-describedby="erro-senha"
+                    />
+                    <p class="campo__erro" id="erro-senha" role="alert" hidden></p>
+                </div>
+                <button type="submit" class="botao botao--primario">Entrar</button>
+            </form>
+
+            <!-- Passo 2: lista -->
+            <div class="painel" data-painel hidden>
+                <div class="painel__topo">
+                    <button type="button" class="botao botao--primario" data-novo>
+                        Adicionar presente
+                    </button>
+                    <button type="button" class="botao botao--fantasma" data-recarregar>
+                        Atualizar lista
+                    </button>
+                </div>
+                <div class="mensagem" data-mensagem role="status" tabindex="-1" hidden></div>
+                <div data-lista aria-live="polite"></div>
+            </div>
+
+            <!-- Passo 3: formulário (criar e editar) -->
+            <form class="editor" data-editor method="dialog" novalidate hidden>
+                <h2 class="editor__titulo" data-editor-titulo tabindex="-1">Novo presente</h2>
+
+                <div class="editor__grade">
+                    <div class="editor__campos">
+                        <div class="campo">
+                            <label for="f-nome">Nome do presente</label>
+                            <input id="f-nome" name="nome" type="text" maxlength="60" required aria-describedby="erro-nome" />
+                            <p class="campo__erro" id="erro-nome" hidden></p>
+                        </div>
+
+                        <div class="campo">
+                            <label for="f-valor">Valor (R$)</label>
+                            <input
+                                id="f-valor"
+                                name="valor"
+                                type="text"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                required
+                                aria-describedby="ajuda-valor erro-valor"
+                            />
+                            <p class="campo__ajuda" id="ajuda-valor" data-faixa-ajuda>
+                                Em reais, sem centavos.
+                            </p>
+                            <p class="campo__erro" id="erro-valor" hidden></p>
+                        </div>
+
+                        <div class="campo">
+                            <label for="f-imagem">Link da foto <span class="opcional">(opcional)</span></label>
+                            <input
+                                id="f-imagem"
+                                name="imagem"
+                                type="url"
+                                inputmode="url"
+                                autocapitalize="none"
+                                placeholder="https://"
+                                aria-describedby="ajuda-imagem erro-imagem"
+                            />
+                            <p class="campo__ajuda" id="ajuda-imagem">
+                                Na loja, toque e segure a foto do produto e escolha "Copiar
+                                endereço da imagem". Depois cole aqui.
+                            </p>
+                            <p class="campo__aviso" data-aviso-imagem hidden></p>
+                            <p class="campo__erro" id="erro-imagem" hidden></p>
+                        </div>
+
+                        <fieldset class="campo">
+                            <legend>Quantas pessoas podem dar este presente?</legend>
+                            <label class="radio"><input type="radio" name="modo-cotas" value="um" checked /> Só uma</label>
+                            <label class="radio">
+                                <input type="radio" name="modo-cotas" value="varias" /> Até
+                                <input
+                                    class="cotas-n"
+                                    name="cotas"
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    value="3"
+                                    aria-label="Número de pessoas"
+                                    aria-describedby="erro-cotas"
+                                />
+                                pessoas
+                            </label>
+                            <label class="radio"><input type="radio" name="modo-cotas" value="livre" /> Sem limite (vaquinha)</label>
+                            <p class="campo__erro" id="erro-cotas" hidden></p>
+                        </fieldset>
+
+                        <details class="mais" data-mais>
+                            <summary>Mais opções</summary>
+                            <div class="campo">
+                                <label for="f-descricao">Descrição <span class="opcional">(opcional)</span></label>
+                                <input id="f-descricao" name="descricao" type="text" maxlength="140" aria-describedby="erro-descricao" />
+                                <p class="campo__erro" id="erro-descricao" hidden></p>
+                            </div>
+                            <label class="radio"><input type="checkbox" name="luademel" /> É para a lua de mel</label>
+                            <label class="radio"><input type="checkbox" name="publicar" checked /> Mostrar no site</label>
+                        </details>
+                    </div>
+
+                    <!-- Prévia: o card como vai aparecer em /presentes -->
+                    <div class="previa">
+                        <p class="previa__rotulo">Como vai aparecer no site</p>
+                        <article class="card" aria-hidden="true">
+                            <div class="card__foto">
+                                <img data-previa-img alt="" hidden />
+                                <span class="card__marca" data-previa-marca set:html={amp} />
+                            </div>
+                            <div class="card__corpo">
+                                <h3 class="card__nome" data-previa-nome>Nome do presente</h3>
+                                <p class="card__desc" data-previa-desc hidden></p>
+                                <p class="card__valor tabular" data-previa-valor>R$ 0</p>
+                                <p class="card__cotas" data-previa-cotas hidden></p>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <p class="alerta" data-erro-geral role="alert" hidden></p>
+                <ul class="avisos" data-avisos hidden></ul>
+
+                <div class="editor__acoes">
+                    <button type="submit" class="botao botao--primario" data-salvar>Adicionar presente</button>
+                    <button type="button" class="botao botao--fantasma" data-cancelar>Voltar</button>
+                </div>
+
+                <div class="apagar" data-apagar-zona hidden>
+                    <p class="apagar__bloqueado" data-apagar-bloqueado hidden>
+                        Este presente tem pagamentos registrados e não pode ser apagado. Você pode
+                        tirá-lo do site desmarcando "Mostrar no site" em Mais opções.
+                    </p>
+                    <button type="button" class="link-perigo" data-apagar>Apagar este presente</button>
+                    <div class="apagar__confirma" data-apagar-confirma hidden>
+                        <p data-apagar-pergunta></p>
+                        <button type="button" class="botao botao--primario" data-apagar-sim>Sim, apagar</button>
+                        <button type="button" class="botao botao--fantasma" data-apagar-nao>Cancelar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+</Base>
+
+<script>
+    import { adminPresentes } from '../../lib/admin-presentes';
+    adminPresentes();
+</script>
+
+<style>
+    .cabeca {
+        display: flex;
+        align-items: flex-end;
+        min-block-size: 24svh;
+        padding-block: calc(var(--e-6) + var(--e-3)) var(--e-3);
+    }
+    .cabeca__apoio {
+        margin-block-start: var(--e-1);
+        font-size: var(--t-sm);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+
+    .entrar {
+        display: grid;
+        gap: var(--e-3);
+        max-inline-size: 22rem;
+    }
+
+    .campo {
+        display: grid;
+        gap: 0.35rem;
+        border: 0;
+        padding: 0;
+        margin: 0;
+    }
+    label,
+    legend,
+    summary {
+        font-size: var(--t-sm);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+    .opcional {
+        font-weight: 400;
+        color: var(--texto-suave);
+    }
+    input[type='text'],
+    input[type='url'],
+    input[type='password'] {
+        inline-size: 100%;
+        min-block-size: 44px;
+        padding: 0.6rem 0.75rem;
+        background: var(--creme);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+        color: var(--texto);
+        font-size: 1rem; /* 16px: abaixo disso o iOS dá zoom ao focar */
+    }
+    input[aria-invalid='true'] {
+        border-color: var(--laranja-texto);
+        border-width: 2px;
+    }
+    .radio {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-block-size: 44px;
+        font-weight: 400;
+        cursor: pointer;
+    }
+    .radio input[type='radio'],
+    .radio input[type='checkbox'] {
+        inline-size: 20px;
+        block-size: 20px;
+        accent-color: var(--laranja-texto);
+    }
+    .radio .cotas-n {
+        inline-size: 4.5rem;
+    }
+    .campo__ajuda {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .campo__erro,
+    .campo__aviso {
+        font-size: var(--t-xs);
+        font-weight: 600;
+        color: var(--laranja-texto);
+    }
+
+    .alerta,
+    .mensagem {
+        padding: var(--e-2);
+        border: 2px solid var(--laranja-texto);
+        border-radius: var(--raio);
+        font-size: var(--t-sm);
+    }
+    .alerta {
+        color: var(--laranja-texto);
+    }
+    .mensagem {
+        border-color: var(--oliva);
+        margin-block: var(--e-3);
+    }
+    .avisos {
+        margin: 0;
+        padding: var(--e-2) var(--e-2) var(--e-2) var(--e-4);
+        border-inline-start: 3px solid var(--laranja);
+        font-size: var(--t-sm);
+    }
+
+    /* --- Lista --- */
+    .painel__topo {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--e-2);
+        margin-block-end: var(--e-3);
+    }
+    .painel :global(.grupo) {
+        margin-block-start: var(--e-4);
+    }
+    .painel :global(.grupo h2) {
+        font-size: var(--t-lg);
+        margin-block-end: var(--e-2);
+    }
+    .painel :global(.itens) {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: var(--e-1);
+    }
+    .painel :global(.item) {
+        display: grid;
+        grid-template-columns: 3.5rem 1fr;
+        gap: var(--e-2);
+        align-items: center;
+        padding: var(--e-1);
+        background: var(--bg-alt);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-produto);
+    }
+    .painel :global(.item--fora) {
+        opacity: 0.65;
+    }
+    .painel :global(.item__foto) {
+        inline-size: 3.5rem;
+        block-size: 3.5rem;
+        border-radius: calc(var(--raio-produto) - 4px);
+        background: #fff;
+        object-fit: contain;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+    }
+    .painel :global(.item__foto svg) {
+        inline-size: 1.5rem;
+        color: color-mix(in srgb, var(--laranja) 55%, transparent);
+    }
+    .painel :global(.item__abrir) {
+        display: grid;
+        gap: 0.15rem;
+        text-align: start;
+        background: none;
+        border: 0;
+        padding: 0;
+        color: inherit;
+        cursor: pointer;
+        min-block-size: 44px;
+    }
+    .painel :global(.item__nome) {
+        font-weight: 600;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-color: var(--borda);
+    }
+    .painel :global(.item__info) {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .painel :global(.selo) {
+        display: inline-block;
+        margin-inline-end: 0.4rem;
+        padding: 0.05rem 0.45rem;
+        border: 1px solid var(--borda);
+        border-radius: 999px;
+        font-size: var(--t-xs);
+    }
+
+    /* --- Editor --- */
+    .editor {
+        display: grid;
+        gap: var(--e-3);
+    }
+    .editor__titulo {
+        font-size: var(--t-xl);
+    }
+    .editor__grade {
+        display: grid;
+        gap: var(--e-4);
+        grid-template-columns: minmax(0, 1fr);
+    }
+    @media (min-width: 48rem) {
+        .editor__grade {
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+            align-items: start;
+        }
+    }
+    .editor__campos {
+        display: grid;
+        gap: var(--e-3);
+    }
+    .editor__acoes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--e-2);
+    }
+    .mais {
+        display: grid;
+        gap: var(--e-2);
+    }
+    .mais summary {
+        min-block-size: 44px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    /* Prévia: mesmos valores do card de Presentes.astro (task 14). */
+    .previa__rotulo {
+        font-size: var(--t-xs);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+        margin-block-end: var(--e-1);
+    }
+    .card {
+        max-inline-size: 18rem;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-alt);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-produto);
+        overflow: hidden;
+        box-shadow:
+            0 1px 2px color-mix(in srgb, var(--oliva) 8%, transparent),
+            0 6px 18px color-mix(in srgb, var(--oliva) 7%, transparent);
+    }
+    .card__foto {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1 / 1;
+        padding: var(--e-2);
+        overflow: hidden;
+        background: #fff;
+    }
+    .card__foto img {
+        max-inline-size: 100%;
+        max-block-size: 100%;
+        object-fit: contain;
+    }
+    .card__marca {
+        display: block;
+        inline-size: 2.5rem;
+        color: color-mix(in srgb, var(--laranja) 55%, transparent);
+    }
+    .card__marca :global(svg) {
+        inline-size: 100%;
+        height: auto;
+    }
+    .card__corpo {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        padding: var(--e-3);
+    }
+    .card__nome {
+        font-size: var(--t-lg);
+        text-transform: none;
+    }
+    .card__desc,
+    .card__cotas {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .card__valor {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+    }
+
+    .apagar {
+        display: grid;
+        gap: var(--e-2);
+        margin-block-start: var(--e-3);
+        padding-block-start: var(--e-3);
+        border-block-start: 1px solid var(--borda);
+    }
+    .apagar__bloqueado {
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+    .apagar__confirma {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--e-2);
+    }
+    .apagar__confirma p {
+        flex-basis: 100%;
+        font-weight: 600;
+    }
+    .link-perigo {
+        justify-self: start;
+        min-block-size: 44px;
+        background: none;
+        border: 0;
+        padding: 0;
+        color: var(--laranja-texto);
+        font-size: var(--t-sm);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+
+    [hidden] {
+        display: none !important;
+    }
+</style>

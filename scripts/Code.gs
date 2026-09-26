@@ -183,7 +183,7 @@ function doGet(e) {
     try {
         switch (acao) {
             case 'ping':
-                return json_({ ok: true, versao: '10.0', hora: new Date().toISOString() });
+                return json_({ ok: true, versao: '17.0', hora: new Date().toISOString() });
             case 'catalogo':
                 return json_({ ok: true, presentes: catalogo_() });
             case 'status':
@@ -266,6 +266,24 @@ function statusPresentes_() {
 // ============================================================ escrita (doPost)
 
 function doPost(e) {
+    // Ações dos noivos (task 17) pegam o lock só em volta da gravação: elas fazem rede
+    // (pré-voo da imagem, disparo do deploy) e não podem prender o RSVP dos convidados.
+    let dadosAdmin = null;
+    try {
+        dadosAdmin = JSON.parse(e.postData.contents);
+    } catch (err) {
+        dadosAdmin = null;
+    }
+    if (dadosAdmin && ACOES_ADMIN.indexOf(dadosAdmin.acao) !== -1) {
+        try {
+            return json_(admin_(dadosAdmin));
+        } catch (err) {
+            console.error(err);
+            log_('erro', 'admin:' + dadosAdmin.acao, String(err));
+            return json_({ ok: false, msg: 'Não conseguimos salvar agora. Tente de novo em instantes.' });
+        }
+    }
+
     const lock = LockService.getScriptLock();
     try {
         // Serializa a escrita. Sem lock, dois envios simultâneos podem escrever na mesma
@@ -429,6 +447,556 @@ function reservar_(bruto) {
     log_('info', 'reservar', presenteId + ' por ' + (nome || '(anônimo)'));
 
     return json_({ ok: true, msg: 'Reserva registrada. Obrigado!' });
+}
+
+// ============================================================ presentes pelos noivos (task 17)
+
+/**
+ * Os noivos criam, editam e apagam presentes pela tela `/noivos/presentes` do site.
+ * Tudo aqui exige a senha dos noivos. Ver tasks/17/task_text.md.
+ */
+const ACOES_ADMIN = ['entrar', 'listarPresentes', 'criarPresente', 'editarPresente', 'apagarPresente'];
+
+/**
+ * Senha dos noivos: só o hash fica no código, porque o repositório é público.
+ * Para trocar, rode no editor `definirSenhaNoivos('nova-senha')` (a partir de uma função
+ * sua, ver o comentário dela). O valor gravado em PropertiesService passa a valer no lugar
+ * deste.
+ */
+const SENHA_PADRAO = {
+    sal: '1a489fed25c4f31e',
+    hash: 'ac2259cb610f43e61e85ee8ae53a453e15ee97c797e346d3372dd615bac17cc5',
+};
+
+const ADMIN = {
+    /** Senhas erradas toleradas na janela. O Apps Script não vê IP: o limite é global. */
+    FALHAS_MAX: 5,
+    JANELA_MS: 15 * 60 * 1000,
+    IDEMPOTENCIA_S: 600,
+    REPO: 'jhonydias/gv-wedding',
+    WORKFLOW: 'deploy.yml',
+    // Mesmas fronteiras de FAIXAS em src/data/presentes.ts ("Até R$ 150", "De R$ 150 a
+    // R$ 800", "Acima de R$ 800"). Mudou lá, muda aqui: `faixaDe()` no site espelha esta.
+    TETO_LEMBRANCA: 150,
+    TETO_CASA: 800,
+};
+
+function sha256Hex_(texto) {
+    return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, texto, Utilities.Charset.UTF_8)
+        .map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); })
+        .join('');
+}
+
+/** Comparação em tempo constante. */
+function iguais_(a, b) {
+    if (a.length !== b.length) return false;
+    let dif = 0;
+    for (let i = 0; i < a.length; i++) dif |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return dif === 0;
+}
+
+function senhaConfere_(senha) {
+    const props = PropertiesService.getScriptProperties();
+    const sal = props.getProperty('admin_sal') || SENHA_PADRAO.sal;
+    const hash = props.getProperty('admin_hash') || SENHA_PADRAO.hash;
+    return iguais_(sha256Hex_(sal + String(senha || '')), hash);
+}
+
+/**
+ * Troca a senha dos noivos. No editor não dá para passar argumento pelo botão Executar:
+ * crie uma função `function trocar() { definirSenhaNoivos('nova-senha'); }`, rode, e
+ * apague a função depois (para a senha não ficar escrita no projeto).
+ */
+function definirSenhaNoivos(senha) {
+    if (!senha || String(senha).length < 8) throw new Error('Use uma senha com pelo menos 8 caracteres.');
+    const sal = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('admin_sal', sal);
+    props.setProperty('admin_hash', sha256Hex_(sal + String(senha)));
+    props.deleteProperty('admin_falhas');
+    return 'senha trocada';
+}
+
+/**
+ * Opcional: token fino do GitHub (só este repositório, só "Actions: Read and write").
+ * Com ele, o presente aparece no site em ~3 min. Sem ele, a verificação agendada do
+ * deploy.yml publica em até ~30 min. Mesmo esquema do definirSenhaNoivos para rodar.
+ */
+function definirTokenGithub(token) {
+    PropertiesService.getScriptProperties().setProperty('github_token', String(token || '').trim());
+    return 'token gravado';
+}
+
+/**
+ * Rode UMA VEZ no editor depois de colar este arquivo: a task 17 usa UrlFetchApp (conferir
+ * o link da foto e disparar o deploy), e o Google só pede essa autorização no editor.
+ * Sem isso, o App da Web falha ao salvar presente.
+ */
+function autorizarNoivos() {
+    const r = UrlFetchApp.fetch('https://www.google.com/generate_204', { muteHttpExceptions: true });
+    log_('info', 'autorizarNoivos', 'UrlFetchApp ok: ' + r.getResponseCode());
+    return 'autorizado (' + r.getResponseCode() + ')';
+}
+
+function falhasRecentes_() {
+    const agora = Date.now();
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty('admin_falhas') || '[]')
+        .filter(function (t) { return agora - t < ADMIN.JANELA_MS; });
+}
+
+function registrarFalha_() {
+    const f = falhasRecentes_();
+    f.push(Date.now());
+    PropertiesService.getScriptProperties().setProperty('admin_falhas', JSON.stringify(f));
+}
+
+/** Ponto de entrada das ações dos noivos. Devolve objeto; o doPost serializa. */
+function admin_(d) {
+    if (falhasRecentes_().length >= ADMIN.FALHAS_MAX) {
+        return { ok: false, motivo: 'bloqueado', msg: 'Muitas tentativas com a senha errada. Espere 15 minutos e tente de novo.' };
+    }
+    if (!senhaConfere_(d.senha)) {
+        registrarFalha_();
+        log_('aviso', 'admin:senha', 'senha errada em ' + d.acao); // nunca a senha tentada
+        return { ok: false, motivo: 'senha', msg: 'Senha incorreta.' };
+    }
+
+    switch (d.acao) {
+        case 'entrar':
+            return { ok: true };
+        case 'listarPresentes':
+            return { ok: true, presentes: listarPresentes_() };
+    }
+
+    let r;
+    if (d.acao === 'criarPresente') r = criarPresente_(d);
+    else if (d.acao === 'editarPresente') r = editarPresente_(d);
+    else r = apagarPresente_(d);
+
+    if (r.ok && !r._repetido) {
+        CacheService.getScriptCache().removeAll(['catalogo', 'status']);
+        r.publicacao = dispararDeploy_();
+        lembrarPedido_(d.pedido_id, r);
+    }
+    delete r._repetido;
+    return r;
+}
+
+// ---------------------------------------------------------------- leitura
+
+/**
+ * Lê `Presentes` guardando o número REAL da linha. O `lerAba_()` numera depois de filtrar
+ * linhas vazias, então com uma linha em branco no meio o `_linha` dele aponta para o
+ * vizinho. Para ler, tanto faz; para editar e apagar, seria mexer no presente errado.
+ */
+function lerPresentes_() {
+    const aba = aba_(ABAS.PRESENTES);
+    const valores = aba.getDataRange().getValues();
+    const cab = valores[0].map(String);
+    const linhas = [];
+    for (let i = 1; i < valores.length; i++) {
+        const l = valores[i];
+        if (!l.some(function (c) { return c !== '' && c !== null; })) continue;
+        const o = { _linha: i + 1 };
+        cab.forEach(function (c, j) { o[c] = l[j]; });
+        linhas.push(o);
+    }
+    return { aba: aba, cab: cab, linhas: linhas };
+}
+
+/** Hash curto do conteúdo da linha: controle de edição concorrente. */
+function versaoDe_(p) {
+    return sha256Hex_(JSON.stringify(COLUNAS.Presentes.map(function (c) { return String(p[c]); }))).slice(0, 12);
+}
+
+function contagemPagamentos_() {
+    const c = {};
+    lerAba_(ABAS.PAGAMENTOS).forEach(function (p) {
+        const id = String(p.presente_id).trim();
+        if (!id) return;
+        if (!c[id]) c[id] = { pendente: 0, confirmado: 0, cancelado: 0, total: 0 };
+        const st = String(p.status).toLowerCase();
+        if (c[id][st] !== undefined) c[id][st]++;
+        c[id].total++;
+    });
+    return c;
+}
+
+function presenteDaLinha_(p, pagamentos) {
+    const id = String(p.id).trim();
+    return {
+        id: id,
+        nome: String(p.nome),
+        valor: Number(p.valor) || 0,
+        faixa: String(p.faixa || ''),
+        imagem: String(p.imagem || ''),
+        descricao: String(p.descricao || ''),
+        cotas: p.cotas === '' || p.cotas === null ? null : Number(p.cotas),
+        ativo: ehVerdadeiro_(p.ativo),
+        ordem: Number(p.ordem) || 0,
+        pagamentos: pagamentos[id] || { pendente: 0, confirmado: 0, cancelado: 0, total: 0 },
+        versao: versaoDe_(p),
+    };
+}
+
+/** Todos os presentes, inclusive os fora do site. Contagem de pagamentos, nunca nomes. */
+function listarPresentes_() {
+    const pg = contagemPagamentos_();
+    return lerPresentes_().linhas
+        .filter(function (p) { return String(p.id).trim() !== ''; })
+        .map(function (p) { return presenteDaLinha_(p, pg); })
+        .sort(function (a, b) { return a.ordem - b.ordem; });
+}
+
+// ---------------------------------------------------------------- regras
+
+function faixaDe_(valor, luademel) {
+    if (luademel) return 'luademel';
+    if (valor <= ADMIN.TETO_LEMBRANCA) return 'lembranca';
+    if (valor <= ADMIN.TETO_CASA) return 'casa';
+    return 'grande';
+}
+
+/** Espelha `txidDe()` de src/lib/pix.ts. Mudou lá, muda aqui. */
+function txidDe_(slug) {
+    return ('GV' + String(slug).replace(/[^A-Za-z0-9]/g, '')).slice(0, 25);
+}
+
+function slugDe_(nome) {
+    const s = String(nome)
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40)
+        .replace(/-+$/, '');
+    return s || 'presente';
+}
+
+/**
+ * Id livre: não colide com nenhum id da aba (inclusive os fora do site) NEM com o txid de
+ * nenhum deles. O txid corta em 25 caracteres, então dois nomes longos que começam igual
+ * dariam o mesmo txid e pagamentos indistinguíveis no extrato. Para o sufixo não cair
+ * depois do corte, a base encurta até caber.
+ */
+function idLivre_(base, linhas) {
+    const ids = {};
+    const txids = {};
+    linhas.forEach(function (p) {
+        const id = String(p.id).trim();
+        if (!id) return;
+        ids[id] = true;
+        txids[txidDe_(id)] = true;
+    });
+    const livre = function (c) { return !ids[c] && !txids[txidDe_(c)]; };
+    if (livre(base)) return base;
+    for (let n = 2; n < 1000; n++) {
+        const suf = String(n);
+        let b = base;
+        while (b.replace(/[^a-z0-9]/g, '').length + suf.length > 23) b = b.slice(0, -1).replace(/-+$/, '');
+        const cand = (b ? b + '-' : '') + suf;
+        if (livre(cand)) return cand;
+    }
+    throw new Error('Sem id livre para ' + base);
+}
+
+/** Travessão vira dois-pontos, como no tools/catalogo.mjs (task 11). */
+function semTravessao_(s) {
+    return s.indexOf('—') === -1 ? s : s.replace(/\s*—\s*/g, ': ').replace(/[\s:]+$/, '').trim();
+}
+
+/** Célula que começa com = + - @ viraria fórmula na planilha. */
+function textoSeguro_(s) {
+    return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+/** Valida os campos do formulário. Igual para criar e editar. */
+function validarPresente_(d) {
+    const avisos = [];
+    const erro = function (campo, msg) { return { ok: false, campo: campo, msg: msg }; };
+
+    let nome = limpar_(d.nome, 200);
+    let descricao = limpar_(d.descricao, 400);
+    const nomeT = semTravessao_(nome);
+    const descT = semTravessao_(descricao);
+    if (nomeT !== nome || descT !== descricao) {
+        avisos.push('Trocamos o travessão (—) por dois-pontos: o site não usa travessão.');
+    }
+    nome = nomeT;
+    descricao = descT;
+
+    if (nome.length < 2 || nome.length > 60) return erro('nome', 'Dê um nome ao presente, com até 60 letras.');
+    if (descricao.length > 140) return erro('descricao', 'Use no máximo 140 caracteres na descrição.');
+
+    const valor = Number(d.valor);
+    if (!Number.isInteger(valor) || valor < 10 || valor > 20000) {
+        return erro('valor', 'Use um valor em reais, sem centavos, entre R$ 10 e R$ 20.000.');
+    }
+
+    const imagemBruta = String(d.imagem || '').trim();
+    if (imagemBruta.length > 2048) return erro('imagem', 'Esse link é longo demais.');
+    if (imagemBruta && !/^https:\/\/\S+$/i.test(imagemBruta)) {
+        return erro('imagem', 'O link da foto precisa começar com https://');
+    }
+
+    let cotas = '';
+    if (d.cotas !== null && d.cotas !== undefined && d.cotas !== '') {
+        cotas = Number(d.cotas);
+        if (!Number.isInteger(cotas) || cotas < 1 || cotas > 50) {
+            return erro('cotas', 'Escolha de 1 a 50 pessoas, ou "sem limite".');
+        }
+    }
+
+    const luademel = d.luademel === true;
+    return {
+        ok: true,
+        avisos: avisos,
+        campos: {
+            nome: nome,
+            valor: valor,
+            faixa: faixaDe_(valor, luademel),
+            imagem: imagemBruta,
+            descricao: descricao,
+            ativo: d.publicar !== false,
+            cotas: cotas,
+        },
+    };
+}
+
+/**
+ * Confere se o link da foto abre uma FOTO. O erro mais provável de quem copia do celular é
+ * copiar o link da página do produto. Erro de rede não bloqueia: loja que recusa o Google
+ * pode aceitar o runner do GitHub, que é quem baixa de verdade.
+ */
+function preVooImagem_(url) {
+    try {
+        const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+        const cab = r.getHeaders();
+        const tipo = String(cab['Content-Type'] || cab['content-type'] || '');
+        const cod = r.getResponseCode();
+        if (cod >= 200 && cod < 300) {
+            if (/^image\//i.test(tipo)) return { ok: true };
+            if (/html/i.test(tipo)) {
+                return {
+                    ok: false,
+                    msg: 'Esse link abre uma página, não uma foto. Na loja, toque e segure a foto do produto e escolha "Copiar endereço da imagem".',
+                };
+            }
+        }
+        return { ok: true, aviso: 'Não conseguimos conferir a foto agora (a loja respondeu ' + cod + '). Se ela não baixar, o presente aparece com o símbolo do casamento no lugar.' };
+    } catch (e) {
+        return { ok: true, aviso: 'Não conseguimos abrir o link da foto agora. Se ela não baixar, o presente aparece com o símbolo do casamento no lugar.' };
+    }
+}
+
+// ---------------------------------------------------------------- escrita
+
+function pedidoGuardado_(pedido) {
+    if (!pedido) return null;
+    const bruto = CacheService.getScriptCache().get('pedido_' + pedido);
+    if (!bruto) return null;
+    const r = JSON.parse(bruto);
+    r._repetido = true;
+    return r;
+}
+
+function lembrarPedido_(pedido, r) {
+    if (!pedido) return;
+    CacheService.getScriptCache().put('pedido_' + limpar_(pedido, 64), JSON.stringify(r), ADMIN.IDEMPOTENCIA_S);
+}
+
+/**
+ * Grava com lock, uma vez por `pedido_id`. A conferência do pedido é DENTRO do lock: fora,
+ * dois envios simultâneos do mesmo toque duplo passariam os dois.
+ */
+function gravarUmaVez_(pedidoBruto, fn) {
+    const pedido = limpar_(pedidoBruto, 64);
+    const lock = LockService.getScriptLock();
+    lock.waitLock(LIMITES.LOCK_MS);
+    try {
+        const ja = pedidoGuardado_(pedido);
+        if (ja) return ja;
+        const r = fn();
+        if (r.ok) lembrarPedido_(pedido, r);
+        return r;
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+function linhaPara_(cab, o) {
+    return cab.map(function (c) { return o[c] === undefined ? '' : o[c]; });
+}
+
+function avisoImagemRepetida_(imagem, linhas, idProprio) {
+    if (!imagem) return null;
+    const outro = linhas.filter(function (p) {
+        return String(p.imagem).trim() === imagem && String(p.id).trim() !== idProprio;
+    })[0];
+    return outro ? 'Esta foto já é usada em "' + outro.nome + '". Confira se é a foto certa.' : null;
+}
+
+function criarPresente_(d) {
+    const v = validarPresente_(d);
+    if (!v.ok) return v;
+    const c = v.campos;
+
+    // Rede fora do lock.
+    if (c.imagem) {
+        const img = preVooImagem_(c.imagem);
+        if (!img.ok) return { ok: false, campo: 'imagem', msg: img.msg };
+        if (img.aviso) v.avisos.push(img.aviso);
+    }
+
+    return gravarUmaVez_(d.pedido_id, function () {
+        const t = lerPresentes_();
+        const rep = avisoImagemRepetida_(c.imagem, t.linhas, null);
+        if (rep) v.avisos.push(rep);
+
+        const id = idLivre_(slugDe_(c.nome), t.linhas);
+        const ordem = t.linhas.reduce(function (m, p) { return Math.max(m, Number(p.ordem) || 0); }, 0) + 10;
+
+        t.aba.appendRow(linhaPara_(t.cab, {
+            id: id,
+            nome: textoSeguro_(c.nome),
+            valor: c.valor,
+            faixa: c.faixa,
+            imagem: c.imagem,
+            descricao: textoSeguro_(c.descricao),
+            ativo: c.ativo,
+            cotas: c.cotas,
+            ordem: ordem,
+        }));
+        log_('info', 'criarPresente', id + ' · ' + c.nome + ' · R$ ' + c.valor);
+        return { ok: true, id: id, nome: c.nome, faixa: c.faixa, avisos: v.avisos };
+    });
+}
+
+function editarPresente_(d) {
+    const id = limpar_(d.id, 60);
+    if (!id) return { ok: false, msg: 'Presente não informado.' };
+    const v = validarPresente_(d);
+    if (!v.ok) return v;
+    const c = v.campos;
+
+    // Pré-voo só se a foto mudou (e fora do lock).
+    const antes = lerPresentes_().linhas.filter(function (p) { return String(p.id).trim() === id; })[0];
+    if (c.imagem && (!antes || String(antes.imagem).trim() !== c.imagem)) {
+        const img = preVooImagem_(c.imagem);
+        if (!img.ok) return { ok: false, campo: 'imagem', msg: img.msg };
+        if (img.aviso) v.avisos.push(img.aviso);
+    }
+
+    return gravarUmaVez_(d.pedido_id, function () {
+        // Relê DENTRO do lock e acha pelo id, nunca pela posição: a planilha pode ter
+        // mudado desde a listagem.
+        const t = lerPresentes_();
+        const p = t.linhas.filter(function (l) { return String(l.id).trim() === id; })[0];
+        if (!p) return { ok: false, motivo: 'nao_existe', msg: 'Este presente não existe mais. Ele pode ter sido apagado.' };
+
+        const pgs = contagemPagamentos_();
+        if (versaoDe_(p) !== String(d.versao || '')) {
+            return {
+                ok: false,
+                motivo: 'conflito',
+                msg: 'Este presente foi alterado enquanto você editava. Carregamos a versão atual.',
+                presente: presenteDaLinha_(p, pgs),
+            };
+        }
+
+        const pg = pgs[id] || { pendente: 0, confirmado: 0, cancelado: 0, total: 0 };
+        if (c.cotas !== '' && c.cotas < pg.confirmado) {
+            return {
+                ok: false,
+                campo: 'cotas',
+                msg: 'Já tem ' + pg.confirmado + ' pessoas que deram este presente. O mínimo é ' + pg.confirmado + '.',
+            };
+        }
+        if (pg.pendente > 0 && Number(p.valor) !== c.valor) {
+            v.avisos.push('Tem ' + pg.pendente + ' reserva(s) aguardando Pix com o valor antigo (R$ ' + p.valor + '). Quem reservou pode pagar esse valor.');
+        }
+        if (pg.pendente > 0 && c.cotas !== '' && c.cotas <= pg.confirmado) {
+            v.avisos.push('Tem reserva aguardando Pix: se ela for paga, o presente passa do limite de pessoas.');
+        }
+        const rep = avisoImagemRepetida_(c.imagem, t.linhas, id);
+        if (rep) v.avisos.push(rep);
+
+        const mudouFaixa = String(p.faixa) !== c.faixa;
+        const ordem = mudouFaixa
+            ? t.linhas.reduce(function (m, l) { return Math.max(m, Number(l.ordem) || 0); }, 0) + 10
+            : p.ordem;
+
+        t.aba.getRange(p._linha, 1, 1, t.cab.length).setValues([linhaPara_(t.cab, {
+            id: id, // o id NUNCA muda: é o txid no extrato e a chave dos pagamentos
+            nome: textoSeguro_(c.nome),
+            valor: c.valor,
+            faixa: c.faixa,
+            imagem: c.imagem,
+            descricao: textoSeguro_(c.descricao),
+            ativo: c.ativo,
+            cotas: c.cotas,
+            ordem: ordem,
+        })]);
+        log_('info', 'editarPresente', id + ' · ' + JSON.stringify(c));
+        return { ok: true, id: id, nome: c.nome, faixa: c.faixa, avisos: v.avisos };
+    });
+}
+
+function apagarPresente_(d) {
+    const id = limpar_(d.id, 60);
+    if (!id) return { ok: false, msg: 'Presente não informado.' };
+
+    return gravarUmaVez_(d.pedido_id, function () {
+        const t = lerPresentes_();
+        const p = t.linhas.filter(function (l) { return String(l.id).trim() === id; })[0];
+        if (!p) return { ok: true, id: id, msg: 'Este presente já tinha sido apagado.' };
+
+        // Qualquer pagamento, até cancelado, bloqueia: apagar deixaria linha órfã em
+        // Pagamentos (task 10 §0.2.1). Conferido DENTRO do lock, senão um `reservar`
+        // pode gravar entre a conferência e o deleteRow.
+        const pg = contagemPagamentos_()[id];
+        if (pg && pg.total > 0) {
+            return {
+                ok: false,
+                motivo: 'tem_pagamento',
+                pagamentos: pg,
+                msg: 'Este presente tem pagamentos registrados e não pode ser apagado. Você pode tirá-lo do site.',
+            };
+        }
+
+        // O desfazer: a linha inteira fica no Log.
+        const copia = {};
+        COLUNAS.Presentes.forEach(function (col) { copia[col] = p[col]; });
+        log_('info', 'apagarPresente', JSON.stringify(copia));
+        t.aba.deleteRow(p._linha);
+        return { ok: true, id: id, nome: String(p.nome) };
+    });
+}
+
+/**
+ * Pede ao GitHub um deploy novo. Sem token, a verificação agendada do deploy.yml publica
+ * sozinha em até ~30 min; o token só encurta a espera.
+ */
+function dispararDeploy_() {
+    const token = PropertiesService.getScriptProperties().getProperty('github_token');
+    if (!token) return 'agendada';
+    try {
+        const r = UrlFetchApp.fetch(
+            'https://api.github.com/repos/' + ADMIN.REPO + '/actions/workflows/' + ADMIN.WORKFLOW + '/dispatches',
+            {
+                method: 'post',
+                contentType: 'application/json',
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' },
+                payload: JSON.stringify({ ref: 'main' }),
+                muteHttpExceptions: true,
+            },
+        );
+        if (r.getResponseCode() === 204) return 'disparada';
+        log_('erro', 'dispararDeploy', r.getResponseCode() + ' ' + r.getContentText().slice(0, 300));
+    } catch (e) {
+        log_('erro', 'dispararDeploy', String(e));
+    }
+    return 'agendada';
 }
 
 // ============================================================ e-mail

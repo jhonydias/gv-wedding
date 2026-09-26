@@ -67,6 +67,10 @@ export const PIX = {
     cidade: import.meta.env.PUBLIC_PIX_CIDADE ?? 'BELEM',
 } as const;
 
+/** Task 17: a faixa é derivada do valor. Mora em `lib/faixa.ts` para a tela dos noivos
+ * não levar o catálogo inteiro no bundle. */
+export { faixaDe } from '../lib/faixa';
+
 const ehFaixa = (v: string): v is Faixa =>
     FAIXAS.some((f) => f.id === v);
 

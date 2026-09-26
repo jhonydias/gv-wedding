@@ -85,6 +85,25 @@ if (duplicados.length) {
     process.exit(1);
 }
 
+// Task 17: dois ids diferentes podem dar o MESMO txid (o txid corta em 25 caracteres), e
+// aí dois pagamentos ficam indistinguíveis no extrato. O Code.gs evita isso ao criar;
+// esta trava pega o caso de alguém mexer num lado só ou editar a planilha à mão.
+// Espelha `txidDe()` de src/lib/pix.ts.
+const txidDe = (slug) => ('GV' + slug.replace(/[^A-Za-z0-9]/g, '')).slice(0, 25);
+const porTxid = new Map();
+for (const p of presentes) {
+    const t = txidDe(p.id);
+    porTxid.set(t, [...(porTxid.get(t) ?? []), p.id]);
+}
+const colisoes = [...porTxid.entries()].filter(([, ids]) => ids.length > 1);
+if (colisoes.length) {
+    console.error(
+        'txid repetido (pagamentos ficariam indistinguíveis no extrato):\n' +
+            colisoes.map(([t, ids]) => `  ${t}: ${ids.join(', ')}`).join('\n'),
+    );
+    process.exit(1);
+}
+
 if (problemas.length) {
     console.warn(`${problemas.length} item(ns) descartado(s):\n${problemas.join('\n')}`);
 }
