@@ -109,6 +109,32 @@ Veja o resultado em **Execuções** (ícone de relógio) e na aba `Log`.
 
 Confira com `SUA_URL/exec?acao=ping`: deve devolver `{"ok":true,"versao":"17.0",…}`.
 
+### Publicar pelo clasp (o caminho normal depois da primeira vez)
+
+O `.clasp.json` na raiz do repositório aponta para o script **"Casamento GV"**, da conta
+**giseleevictorcasamento@gmail.com**, vinculado à planilha `gv_wedding_database`. O `rootDir`
+é `scripts/`: sobem só `Code.gs` e `appsscript.json`.
+
+O login dessa conta fica salvo com o nome **`noivos`**, por isso todo comando leva `-u noivos`
+(o login padrão da máquina é de outra conta e recebe "The caller does not have permission"):
+
+```bash
+npx -y @google/clasp@3.4.1 login --user noivos       # uma vez por máquina, com a conta dos noivos
+npx -y @google/clasp@3.4.1 -u noivos status           # o que vai subir
+npx -y @google/clasp@3.4.1 -u noivos push --force     # sobe o código (não publica)
+npx -y @google/clasp@3.4.1 -u noivos version "o que mudou"             # cria a versão N
+npx -y @google/clasp@3.4.1 -u noivos redeploy <deploymentId> -V <N> -d "o que mudou"
+```
+
+- A conta precisa da **API do Apps Script ativada** em script.google.com/home/usersettings.
+- **Nunca `clasp deploy`** depois da primeira implantação: cria outra, com URL nova, e o site
+  continua falando com a antiga. Atualizar a existente é `redeploy <deploymentId>`, e o
+  `deploymentId` é o trecho `/macros/s/<id>/exec` da `PUBLIC_BACKEND_URL`.
+- **Nunca `clasp pull` dentro do repositório**: sobrescreve o `scripts/Code.gs` local com o que
+  está no Apps Script. Para comparar, clone numa pasta temporária.
+- O `push` troca o arquivo remoto inteiro. No editor ele aparece como `Code` (antes era
+  `Código`, de quando o código era colado à mão).
+
 ---
 
 ## 5. Conectar o front
