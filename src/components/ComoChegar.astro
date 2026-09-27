@@ -1,4 +1,5 @@
 ---
+import IconeApp from './IconeApp.astro';
 import { EVENTO } from '../data/event';
 import { uber, googleMaps, waze, appleMaps, temCoordenadas } from '../lib/mapas';
 
@@ -46,11 +47,9 @@ const rotuloUber = `Pedir Uber até o ${local.nome}`;
 
         <p class="corrida__outros">
             Abrir em:
-            <a href={googleMaps} rel="noopener">Google Maps</a>
-            <span aria-hidden="true">·</span>
-            <a href={waze} rel="noopener">Waze</a>
-            <span aria-hidden="true">·</span>
-            <a href={appleMaps} rel="noopener">Apple Maps</a>
+            <a href={googleMaps} rel="noopener"><IconeApp app="googlemaps" />Google Maps</a>
+            <a href={waze} rel="noopener"><IconeApp app="waze" />Waze</a>
+            <a href={appleMaps} rel="noopener"><IconeApp app="apple" />Apple Maps</a>
         </p>
     </div>
 </section>
@@ -96,6 +95,7 @@ const rotuloUber = `Pedir Uber até o ${local.nome}`;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 0.4em;
         min-block-size: 44px;
         /* Também na largura: "Waze" é curto e o alvo saía com 38px. */
         min-inline-size: 44px;

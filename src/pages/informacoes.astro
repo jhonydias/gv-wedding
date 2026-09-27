@@ -2,7 +2,8 @@
 import Base from '../layouts/Base.astro';
 import ComoChegar from '../components/ComoChegar.astro';
 import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
-import { googleMaps, buscaNoMapa } from '../lib/mapas';
+import IconeApp from '../components/IconeApp.astro';
+import { buscaNoMapa } from '../lib/mapas';
 import { TRAJE, LOJA, instagramDe } from '../data/traje';
 
 const { local } = EVENTO;
@@ -57,15 +58,6 @@ const ORIGENS = [
             </p>
 
             {/*
-                Sem iframe do Google Maps: são ~300 KB de JS de terceiro, cookies e um bloco
-                que atrasa o LCP, para exibir um retângulo que quase ninguém arrasta.
-                TODO(asset): exportar uma imagem estática do mapa e versioná-la.
-            */}
-            <a class="mapa" href={googleMaps} rel="noopener">
-                <span class="mapa__selo">Abrir no mapa</span>
-            </a>
-
-            {/*
                 Os noivos decidiram em 16/08/2026 NÃO informar horário de término. Por isso
                 aqui não há pendência: `termino` é `null` de propósito. Se um dia for
                 preenchido em `event.ts`, a linha aparece sozinha.
@@ -92,41 +84,6 @@ const ORIGENS = [
                 ))}
             </ol>
 
-            <h3 class="sub">Estacionamento</h3>
-            <p class="pendencia">
-                TODO: confirmar se há estacionamento no local, valet, ou se a orientação é usar
-                aplicativo. É a dúvida nº 1 de quem dirige.
-            </p>
-
-            <h3 class="sub">E se chover?</h3>
-            {/*
-                O texto sai de `EVENTO.coberto`, nunca digitado aqui (regra 4 do README das
-                tasks). Os três estados existem de propósito: enquanto for `null`, a página
-                mostra a pendência em vez de afirmar qualquer coisa. Afirmar que a festa é
-                abrigada sem checar é o erro que só aparece no dia, debaixo de chuva.
-
-                Respondido pelos noivos em 16/08/2026: o Espaço FRA é coberto.
-            */}
-            {
-                EVENTO.coberto === null ? (
-                    <p class="pendencia">
-                        TODO: confirmar se o Espaço FRA é coberto ou tem área externa.
-                        <strong>Não escrever este bloco antes da resposta.</strong>
-                    </p>
-                ) : EVENTO.coberto ? (
-                    <p class="texto-corpo">
-                        Pode chover à vontade: o espaço é coberto e a festa inteira acontece
-                        abrigada. Janeiro é o auge da estação chuvosa em Belém, então vale sair
-                        de casa com guarda-chuva pelo caminho, mas ele fica na porta.
-                    </p>
-                ) : (
-                    <p class="texto-corpo">
-                        O espaço tem área externa, e janeiro é o auge da estação chuvosa em
-                        Belém. Traga guarda-chuva e escolha um sapato que não sofra com piso
-                        molhado.
-                    </p>
-                )
-            }
         </div>
     </section>
 
@@ -140,15 +97,6 @@ const ORIGENS = [
         <div class="wrap">
             <h2 id="traje-titulo" data-palavras>Traje</h2>
             <p class="traje__codigo">{TRAJE.codigo}</p>
-            {/*
-                "Nada de lã ou forro pesado" saiu: com passeio completo o convidado vai de
-                terno, e terno tem forro. O conselho de tecido fica, sem proibir o traje.
-            */}
-            <p class="texto-corpo">
-                Belém em janeiro, à noite, é quente e úmido, por volta de 30 °C. Tecidos leves
-                fazem diferença: linho, algodão, seda.
-            </p>
-            <p class="pendencia">TODO: sobre salto, confirmar antes o piso do espaço.</p>
 
             <h3 class="sub">Sugestão de loja</h3>
             <div class="loja">
@@ -174,11 +122,10 @@ const ORIGENS = [
                     <a
                         href={instagramDe(LOJA.instagram)}
                         rel="noopener"
-                        aria-label={`Instagram da ${LOJA.nome}`}>Instagram</a
+                        aria-label={`Instagram da ${LOJA.nome}`}><IconeApp app="instagram" />Instagram</a
                     >
-                    <span aria-hidden="true">·</span>
                     <a href={mapaLoja} rel="noopener" aria-label={`Ver no mapa o endereço da ${LOJA.nome}`}
-                        >Ver no mapa</a
+                        ><IconeApp app="googlemaps" />Ver no mapa</a
                     >
                 </p>
 
@@ -253,23 +200,6 @@ const ORIGENS = [
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--texto-suave);
-    }
-
-    .mapa {
-        display: grid;
-        place-items: center;
-        margin-block-start: var(--e-3);
-        min-block-size: 12rem;
-        background: var(--areia);
-        border: 1px solid var(--borda);
-        border-radius: var(--raio);
-        text-decoration: none;
-    }
-    .mapa__selo {
-        font-size: var(--t-xs);
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--link);
     }
 
     .rotas {
@@ -366,6 +296,7 @@ const ORIGENS = [
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 0.4em;
         min-block-size: 44px;
         min-inline-size: 44px;
         padding-inline: 0.5rem;
