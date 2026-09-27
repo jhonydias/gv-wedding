@@ -52,7 +52,9 @@ const CONFIG_PADRAO = [
     ['evento_quando', '2027-01-16T20:00:00-03:00'],
     ['evento_local', 'Espaço FRA'],
     ['evento_endereco', 'R. Cônego Jerônimo Pimentel, 124 - Umarizal, Belém - PA, 66055-000'],
-    ['site_url', 'https://jhonydias.github.io/gv-wedding'],
+    // ⚠️ Só vale para planilha com a Config VAZIA: `configurarPlanilha()` não sobrescreve
+    // ajuste existente. Numa planilha já semeada, editar a célula `site_url` à mão (task 23).
+    ['site_url', 'https://giseleevictor.com.br'],
     ['email_noivos', 'TODO@exemplo.com'],
     ['whatsapp', 'TODO'],
     ['rsvp_ate', '2026-11-16T23:59:59-03:00'],

@@ -231,7 +231,7 @@ Depois de semear, rode `npm run catalogo` para o site enxergar.
 ### Área dos noivos: `/noivos/presentes` (task 17)
 
 Os noivos criam, editam, tiram do site e apagam presentes pela tela
-`https://jhonydias.github.io/gv-wedding/noivos/presentes/`, com a senha dos noivos.
+`https://giseleevictor.com.br/noivos/presentes/`, com a senha dos noivos.
 O servidor deriva `id`, `faixa` e `ordem`; os noivos preenchem nome, valor, link da foto e
 quantas pessoas podem dar.
 

@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 
 # /confirmar e /historia saem do sitemap e mandam noindex. Ver astro.config.mjs
-Sitemap: https://jhonydias.github.io/gv-wedding/sitemap-index.xml
+Sitemap: https://giseleevictor.com.br/sitemap-index.xml

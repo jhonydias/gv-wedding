@@ -3,12 +3,10 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
 export default defineConfig({
-    site: 'https://jhonydias.github.io',
-
-    // O site mora em jhonydias.github.io/gv-wedding/ enquanto não houver domínio próprio.
-    // Ao migrar para domínio próprio: remover `base`, ajustar `site` e adicionar public/CNAME
-    // NA MESMA MUDANÇA — senão todos os links internos quebram.
-    base: '/gv-wedding',
+    // Domínio próprio desde a task 23. O `base` saiu na mesma mudança que criou o
+    // public/CNAME: `site`, `base` e CNAME são um pacote só, mexer em um sem os outros
+    // quebra o site. Sem `base`, o Astro usa '/' e o `rota()` (src/lib/url.ts) acompanha.
+    site: 'https://giseleevictor.com.br',
 
     // O CSS do projeto é pequeno (tokens + base + motion). Embutir mata um round-trip
     // no caminho crítico e ajuda o LCP.

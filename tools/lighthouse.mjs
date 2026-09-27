@@ -4,7 +4,7 @@
  * Sobe o preview, roda o Lighthouse em cada rota e imprime uma tabela.
  * Sai com erro se alguma métrica ficar abaixo do teto.
  *
- *   node scripts/lighthouse.mjs [--url http://localhost:4321/gv-wedding]
+ *   node scripts/lighthouse.mjs [--url http://localhost:4321]
  */
 import { launch } from 'chrome-launcher';
 import lighthouse from 'lighthouse';
@@ -12,7 +12,7 @@ import lighthouse from 'lighthouse';
 const BASE =
     process.argv.includes('--url')
         ? process.argv[process.argv.indexOf('--url') + 1]
-        : 'http://localhost:4321/gv-wedding';
+        : 'http://localhost:4321';
 
 const ROTAS = ['/', '/historia', '/pre-wedding', '/confirmar', '/presentes', '/informacoes'];
 
