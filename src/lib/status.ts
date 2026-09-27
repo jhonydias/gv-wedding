@@ -26,27 +26,43 @@ const TIMEOUT_MS = 8000;
 interface StatusPresente {
     disponivel: boolean;
     cotasRestantes: number | null;
+    /** Task 22: alguém está no checkout da última cota (reserva de 30 min). */
+    reservado?: boolean;
 }
 
-export async function aplicarStatus(): Promise<void> {
+/** `pix`, `teste` ou `mercadopago` (task 22). `null` = não deu para saber. */
+export type ModoPagamento = 'pix' | 'teste' | 'mercadopago' | null;
+
+/**
+ * Aplica a disponibilidade nos cards e devolve o modo de pagamento, que vem na mesma
+ * resposta. Nunca rejeita: falha de rede devolve `null`.
+ */
+export async function aplicarStatus(): Promise<ModoPagamento> {
     const endpoint = import.meta.env.PUBLIC_BACKEND_URL;
-    if (!endpoint) return;
+    if (!endpoint) return null;
 
     const cards = document.querySelectorAll<HTMLElement>('[data-presente-id]');
-    if (cards.length === 0) return;
+    if (cards.length === 0) return null;
 
     let mapa: Record<string, StatusPresente>;
+    let modo: ModoPagamento = null;
     try {
         const ctrl = new AbortController();
         const t = window.setTimeout(() => ctrl.abort(), TIMEOUT_MS);
         const r = await fetch(`${endpoint}?acao=status`, { signal: ctrl.signal });
         window.clearTimeout(t);
-        const corpo = (await r.json()) as { ok?: boolean; status?: Record<string, StatusPresente> };
-        if (!corpo.ok || !corpo.status) return;
+        const corpo = (await r.json()) as {
+            ok?: boolean;
+            status?: Record<string, StatusPresente>;
+            pagamento?: ModoPagamento;
+        };
+        if (!corpo.ok || !corpo.status) return null;
         mapa = corpo.status;
+        // Backend anterior à task 22 não manda `pagamento`: ele não tem checkout, então é Pix.
+        modo = corpo.pagamento ?? 'pix';
     } catch {
         // Silêncio proposital: tudo segue disponível, que é o estado permissivo.
-        return;
+        return null;
     }
 
     for (const card of cards) {
@@ -73,15 +89,28 @@ export async function aplicarStatus(): Promise<void> {
         }
 
         if (st.disponivel) continue;
+        const botao = card.querySelector<HTMLButtonElement>('[data-presente]');
+
+        // Reservado (task 22 §7.3): alguém está no checkout da última cota. Não é
+        // "presenteado": em até meia hora pode voltar. Fica no plano, sem riscar.
+        if (st.reservado) {
+            card.setAttribute('data-reservado', '');
+            if (botao) {
+                botao.disabled = true;
+                botao.textContent = 'Alguém está presenteando agora';
+            }
+            continue;
+        }
 
         // Indisponível NÃO some da lista: quem recebeu o link de um item específico
-        // precisa entender o que aconteceu, e não achar que a página quebrou.
+        // precisa entender o que aconteceu, e não achar que a página quebrou. E é o que
+        // dá a sensação de lista viva: outros já deram.
         card.setAttribute('data-indisponivel', '');
         if (cotas) cotas.hidden = true;
-        const botao = card.querySelector<HTMLButtonElement>('[data-presente]');
         if (botao) {
             botao.disabled = true;
-            botao.textContent = 'Alguém já presenteou 💛';
+            botao.textContent = 'Presenteado 💛';
         }
     }
+    return modo;
 }

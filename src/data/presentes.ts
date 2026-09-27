@@ -32,6 +32,11 @@ export interface Presente {
      * "R$ 95" sem dizer que eram 3 cotas de R$ 95. Ausente ou inválido vira 1.
      */
     cotas: number;
+    /**
+     * Task 22 §5.4: o convidado escolhe o valor, e `valor` é o mínimo. Presente de valor
+     * livre é sempre ilimitado.
+     */
+    valorLivre: boolean;
 }
 
 /** Formato do JSON congelado — espelha o que `?acao=catalogo` devolve. */
@@ -44,6 +49,7 @@ interface ItemCatalogo {
     descricao?: string;
     cotas?: number | null;
     ordem?: number;
+    valor_livre?: boolean;
 }
 
 export const FAIXAS: ReadonlyArray<{ id: Faixa; titulo: string; apoio: string }> = [
@@ -84,6 +90,7 @@ export const PRESENTES: readonly Presente[] = (catalogo as ItemCatalogo[])
         descricao: p.descricao || undefined,
         imagem: p.imagem || undefined,
         cotas: Number(p.cotas) > 0 ? Number(p.cotas) : 1,
+        valorLivre: p.valor_livre === true,
     }));
 
 /** Formata em BRL. Nunca concatenar 'R$ ' + n. */

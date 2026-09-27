@@ -1,0 +1,111 @@
+---
+/**
+ * Retorno do Mercado Pago — task 22 §7.4. `noindex` e fora do sitemap: só faz sentido
+ * com uma `ref` de pagamento na URL.
+ */
+import Base from '../../layouts/Base.astro';
+import { rota } from '../../lib/url';
+---
+
+<Base
+    titulo="Seu presente · Gisele & Victor"
+    descricao="Acompanhe a confirmação do seu presente."
+    atual="/presentes"
+    naoIndexar
+>
+    <section class="secao obrigado">
+        <div class="wrap obrigado__caixa" data-obrigado>
+            <p class="obrigado__marca" aria-hidden="true">Gisele <span>&amp;</span> Victor</p>
+            <div aria-live="polite">
+                <h1 class="obrigado__titulo" data-titulo tabindex="-1">Confirmando seu pagamento…</h1>
+                <p class="texto-corpo obrigado__texto" data-texto>Só um instante.</p>
+            </div>
+            <div class="obrigado__progresso" data-progresso aria-hidden="true"><span></span></div>
+            <div class="obrigado__acoes" data-acoes hidden>
+                <a class="botao botao--primario" href={rota('/presentes')}>Voltar para a lista</a>
+                <a class="botao botao--fantasma" data-voltar-presente data-base={rota('/presentes')} href={rota('/presentes')} hidden>
+                    Tentar de novo
+                </a>
+            </div>
+        </div>
+    </section>
+</Base>
+
+<script>
+    import { acompanharPagamento } from '../../lib/obrigado';
+    acompanharPagamento();
+</script>
+
+<style>
+    .obrigado {
+        display: grid;
+        place-items: center;
+        min-block-size: 80svh;
+        padding-block-start: calc(var(--e-6) + var(--e-3));
+    }
+    .obrigado__caixa {
+        display: grid;
+        gap: var(--e-3);
+        max-inline-size: var(--largura-texto);
+        text-align: center;
+    }
+    .obrigado__marca {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .obrigado__marca span {
+        color: var(--acento);
+    }
+    .obrigado__titulo {
+        font-size: var(--t-xl);
+    }
+    .obrigado__titulo:focus {
+        outline: none;
+    }
+    .obrigado__acoes {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: var(--e-2);
+    }
+    .obrigado__acoes [hidden] {
+        display: none;
+    }
+
+    /* Barra indeterminada. Sem movimento para quem pediu menos movimento. */
+    .obrigado__progresso {
+        justify-self: center;
+        inline-size: min(16rem, 70vw);
+        block-size: 3px;
+        overflow: hidden;
+        background: var(--borda);
+        border-radius: 3px;
+    }
+    .obrigado__progresso[hidden] {
+        display: none;
+    }
+    .obrigado__progresso span {
+        display: block;
+        inline-size: 35%;
+        block-size: 100%;
+        background: var(--acento);
+        animation: indo 1.4s var(--ease-saida, ease-out) infinite;
+    }
+    @keyframes indo {
+        from {
+            translate: -100% 0;
+        }
+        to {
+            translate: 300% 0;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .obrigado__progresso span {
+            animation: none;
+            inline-size: 100%;
+            opacity: 0.5;
+        }
+    }
+</style>

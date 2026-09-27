@@ -25,6 +25,8 @@ interface Item {
     descricao: string;
     cotas: number | null;
     ativo: boolean;
+    /** Task 22 §5.4: o convidado escolhe o valor; `valor` é o mínimo. */
+    valor_livre?: boolean;
     ordem: number;
     pagamentos: Pagamentos;
     versao: string;
@@ -42,7 +44,39 @@ interface Resposta {
     publicacao?: string;
     presentes?: Item[];
     presente?: Item;
+    recebidos?: Recebido[];
 }
+
+/** Task 22 §8: um presente recebido, para os cartões de agradecimento. */
+interface Recebido {
+    presente: string;
+    nome: string;
+    contato: string;
+    recado: string;
+    valor: number;
+    status: string;
+    canal: string;
+    metodo: string;
+    parcelas: number | null;
+    quando: string;
+    alerta: string;
+}
+
+const METODOS: Record<string, string> = {
+    credit_card: 'cartão de crédito',
+    debit_card: 'cartão de débito',
+    pix: 'Pix',
+    account_money: 'saldo Mercado Pago',
+};
+
+/** O que fazer em cada alerta (task 22 §6.6). */
+const ALERTAS: Record<string, string> = {
+    divergente: 'Valor pago diferente do presente. Confiram no Mercado Pago antes de considerar dado.',
+    excedente: 'Dado além do limite de pessoas. Decidam entre devolver pelo painel do Mercado Pago ou aceitar.',
+    duplicado: 'A pessoa pagou duas vezes. Devolvam um dos pagamentos pelo painel do Mercado Pago.',
+    disputa: 'Pagamento em disputa no Mercado Pago. Respondam pelo painel dentro do prazo.',
+    falha_preferencia: 'O pagamento não chegou a abrir. Nada foi cobrado.',
+};
 
 const CHAVE_SESSAO = 'gv-noivos';
 /** POST com pré-voo de imagem e chamada ao GitHub; o cold start do Apps Script já deu 7,5 s. */
@@ -88,6 +122,7 @@ export function adminPresentes(): void {
     const formEntrar = $<HTMLFormElement>('[data-entrar]');
     const painel = $('[data-painel]');
     const lista = $('[data-lista]');
+    const recebidos = $('[data-recebidos]');
     const mensagem = $('[data-mensagem]');
     const editor = $<HTMLFormElement>('[data-editor]');
     const campo = (n: string) => editor.elements.namedItem(n) as HTMLInputElement;
@@ -133,6 +168,7 @@ export function adminPresentes(): void {
         gravarSessao(null);
         painel.hidden = true;
         editor.hidden = true;
+        recebidos.hidden = true;
         formEntrar.hidden = false;
         const erro = $('#erro-senha');
         erro.textContent = msg ?? '';
@@ -196,7 +232,8 @@ export function adminPresentes(): void {
         if (p.pagamentos.confirmado > 0) {
             s.push(p.cotas ? `${p.pagamentos.confirmado} de ${p.cotas} dados` : `${p.pagamentos.confirmado} dados`);
         }
-        if (p.pagamentos.pendente > 0) s.push(`${p.pagamentos.pendente} aguardando Pix`);
+        if (p.pagamentos.pendente > 0) s.push(`${p.pagamentos.pendente} aguardando pagamento`);
+        if (p.valor_livre) s.push('Valor livre');
         return s;
     }
 
@@ -282,6 +319,78 @@ export function adminPresentes(): void {
     });
     $('[data-novo]').addEventListener('click', () => abrirEditor(null));
 
+    // ------------------------------------------------------------ recebidos (task 22 §8)
+
+    $('[data-ver-recebidos]').addEventListener('click', () => void abrirRecebidos());
+    $('[data-voltar-lista]').addEventListener('click', () => {
+        recebidos.hidden = true;
+        painel.hidden = false;
+    });
+
+    async function abrirRecebidos(): Promise<void> {
+        painel.hidden = true;
+        editor.hidden = true;
+        recebidos.hidden = false;
+        const alvo = $('[data-recebidos-lista]');
+        $('[data-recebidos-titulo]').focus();
+        alvo.textContent = 'Carregando…';
+        const r = await chamar({ acao: 'listarRecebidos' });
+        if (!r.ok || !r.recebidos) {
+            alvo.textContent = r.msg ?? 'Não conseguimos carregar.';
+            return;
+        }
+        alvo.textContent = '';
+        if (r.recebidos.length === 0) {
+            alvo.textContent = 'Nenhum presente recebido ainda.';
+            return;
+        }
+        const total = r.recebidos.filter((x) => x.status === 'confirmado').reduce((t, x) => t + x.valor, 0);
+        const resumo = document.createElement('p');
+        resumo.className = 'item__info';
+        resumo.textContent = `${r.recebidos.filter((x) => x.status === 'confirmado').length} presentes, ${reais(total)} no total (antes das taxas).`;
+        alvo.append(resumo);
+
+        const ul = document.createElement('ul');
+        ul.className = 'itens';
+        // Alertas primeiro: é o que pede ação.
+        const ordenados = [...r.recebidos].sort((a, b) => Number(Boolean(b.alerta)) - Number(Boolean(a.alerta)));
+        for (const x of ordenados) {
+            const li = document.createElement('li');
+            li.className = 'recebido';
+            const topo = document.createElement('p');
+            topo.className = 'item__nome';
+            topo.textContent = `${x.nome} deu ${x.presente}`;
+            const info = document.createElement('p');
+            info.className = 'item__info';
+            const como = x.canal === 'pix_manual'
+                ? 'Pix direto'
+                : (METODOS[x.metodo] ?? x.metodo) + (x.parcelas && x.parcelas > 1 ? ` em ${x.parcelas}x` : '');
+            const data = x.quando ? new Date(x.quando).toLocaleDateString('pt-BR') : '';
+            info.textContent = [reais(x.valor), como, data, x.contato].filter(Boolean).join(' · ');
+            li.append(topo, info);
+            if (x.recado) {
+                const rec = document.createElement('p');
+                rec.className = 'recebido__recado';
+                rec.textContent = `"${x.recado}"`;
+                li.append(rec);
+            }
+            if (x.status === 'estornado') {
+                const a = document.createElement('p');
+                a.className = 'recebido__alerta';
+                a.textContent = 'Devolvido: o presente voltou para a lista.';
+                li.append(a);
+            }
+            if (x.alerta) {
+                const a = document.createElement('p');
+                a.className = 'recebido__alerta';
+                a.textContent = ALERTAS[x.alerta] ?? `Atenção: ${x.alerta}`;
+                li.append(a);
+            }
+            ul.append(li);
+        }
+        alvo.append(ul);
+    }
+
     // ------------------------------------------------------------ editor
 
     function modoCotas(): string {
@@ -297,9 +406,11 @@ export function adminPresentes(): void {
             valor: valorTxt ? Number(valorTxt) : NaN,
             imagem: campo('imagem').value.trim(),
             descricao: campo('descricao').value.trim(),
-            cotas: modo === 'um' ? 1 : modo === 'livre' ? null : nCotas,
+            // Valor livre é sempre sem limite de pessoas (o servidor recusa o contrário).
+            cotas: campo('valor_livre').checked ? null : modo === 'um' ? 1 : modo === 'livre' ? null : nCotas,
             luademel: campo('luademel').checked,
             publicar: campo('publicar').checked,
+            valor_livre: campo('valor_livre').checked,
         };
     }
 
@@ -363,7 +474,9 @@ export function adminPresentes(): void {
         const desc = $('[data-previa-desc]');
         desc.textContent = d.descricao;
         desc.hidden = !d.descricao;
-        $('[data-previa-valor]').textContent = Number.isInteger(d.valor) ? reais(d.valor) : 'R$ 0';
+        $('[data-previa-valor]').textContent = Number.isInteger(d.valor)
+            ? (d.valor_livre ? `A partir de ${reais(d.valor)}` : reais(d.valor))
+            : 'R$ 0';
         const cotas = $('[data-previa-cotas]');
         cotas.hidden = !(d.cotas && d.cotas > 1);
         cotas.textContent = d.cotas && d.cotas > 1 ? `${d.cotas} cotas disponíveis` : '';
@@ -429,7 +542,8 @@ export function adminPresentes(): void {
             d.descricao !== editando.descricao ||
             d.cotas !== editando.cotas ||
             d.luademel !== (editando.faixa === 'luademel') ||
-            d.publicar !== editando.ativo
+            d.publicar !== editando.ativo ||
+            d.valor_livre !== Boolean(editando.valor_livre)
         );
     }
 
@@ -441,11 +555,12 @@ export function adminPresentes(): void {
         campo('descricao').value = p?.descricao ?? '';
         campo('luademel').checked = p?.faixa === 'luademel';
         campo('publicar').checked = p ? p.ativo : true;
+        campo('valor_livre').checked = Boolean(p?.valor_livre);
         const modo = !p || p.cotas === 1 ? 'um' : p.cotas === null ? 'livre' : 'varias';
         editor.querySelector<HTMLInputElement>(`[name="modo-cotas"][value="${modo}"]`)!.checked = true;
         campo('cotas').value = p && p.cotas && p.cotas > 1 ? String(p.cotas) : '3';
         // Descrição ou lua de mel preenchidas: abre "Mais opções" para não esconder dado.
-        $<HTMLDetailsElement>('[data-mais]').open = Boolean(p && (p.descricao || p.faixa === 'luademel' || !p.ativo));
+        $<HTMLDetailsElement>('[data-mais]').open = Boolean(p && (p.descricao || p.faixa === 'luademel' || !p.ativo || p.valor_livre));
         for (const n of ['nome', 'valor', 'imagem', 'cotas', 'descricao']) mostrarErro(n, null);
     }
 

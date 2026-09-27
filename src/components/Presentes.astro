@@ -39,7 +39,8 @@ const itens = configurado
                   chave: PIX.chave,
                   nome: PIX.nome,
                   cidade: PIX.cidade,
-                  valor: p.valor,
+                  // Valor livre (task 22 §5.4): BR Code sem valor, o convidado digita no banco.
+                  valor: p.valorLivre ? undefined : p.valor,
                   txid: txidDe(p.slug),
               });
               const qr = await QRCode.toString(codigo, {
@@ -81,6 +82,7 @@ const itens = configurado
                     {daFaixa.map((p, i) => (
                         <li
                             class="presente"
+                            id={p.slug}
                             data-presente-id={p.slug}
                             data-revela
                             style={`--atraso:${Math.min(i, 4) * 70}ms`}
@@ -105,7 +107,9 @@ const itens = configurado
                             <div class="presente__corpo">
                                 <h3 class="presente__nome">{p.nome}</h3>
                                 {p.descricao && <p class="presente__desc">{p.descricao}</p>}
-                                <p class="presente__valor tabular">{emReais(p.valor)}</p>
+                                <p class="presente__valor tabular">
+                                    {p.valorLivre ? `A partir de ${emReais(p.valor)}` : emReais(p.valor)}
+                                </p>
 
                                 {/*
                                     Cotas e disponibilidade (task 14 §1.5). O texto inicial só
@@ -126,8 +130,11 @@ const itens = configurado
                                     type="button"
                                     class="botao botao--primario presente__botao"
                                     data-presente
+                                    data-id={p.slug}
+                                    data-livre={p.valorLivre ? '' : undefined}
+                                    data-minimo={p.valor}
                                     data-nome={p.nome}
-                                    data-valor={emReais(p.valor)}
+                                    data-valor={p.valorLivre ? `A partir de ${emReais(p.valor)}` : emReais(p.valor)}
                                     data-codigo={p.codigo}
                                     data-qr={p.qr}
                                     data-whatsapp={p.whatsapp}
@@ -148,6 +155,55 @@ const itens = configurado
 
     <h2 class="pix__titulo" id="pix-titulo" data-pix-nome></h2>
     <p class="pix__valor tabular" data-pix-valor></p>
+
+    {/*
+        Task 22: etapa 1, os dados, e daí o checkout do Mercado Pago. method="dialog":
+        fora de um <dialog> não navegaria, e dentro dele só fecha, nunca faz GET com os
+        dados na URL se o script ainda não carregou.
+    */}
+    <form class="pag" data-etapa-dados method="dialog" novalidate hidden>
+        <div class="pag__campo" data-campo-valor hidden>
+            <label for="pag-valor">Quanto você quer dar? (R$)</label>
+            <input
+                id="pag-valor"
+                name="valor"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                aria-describedby="pag-valor-ajuda"
+            />
+            <p class="pag__ajuda" id="pag-valor-ajuda" data-valor-ajuda></p>
+        </div>
+        <div class="pag__campo">
+            <label for="pag-nome">Seu nome</label>
+            <input id="pag-nome" name="nome" type="text" maxlength="80" autocomplete="name" required aria-describedby="pag-nome-ajuda" />
+            <p class="pag__ajuda" id="pag-nome-ajuda">Para os noivos saberem que foi você.</p>
+        </div>
+        <div class="pag__campo">
+            <label for="pag-contato">E-mail ou celular <span class="pag__opcional">(opcional)</span></label>
+            <input id="pag-contato" name="contato" type="text" maxlength="120" autocomplete="email" />
+        </div>
+        <div class="pag__campo">
+            <label for="pag-recado">Recado para os noivos <span class="pag__opcional">(opcional)</span></label>
+            <textarea id="pag-recado" name="recado" rows="3" maxlength="280"></textarea>
+        </div>
+        {/* Honeypot: fora da tela e do leitor de tela. Bot preenche, gente não vê. */}
+        <input class="pag__mel" type="text" name="_gotcha" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+        <p class="pag__erro" data-pag-erro role="alert" hidden></p>
+
+        <button type="submit" class="botao botao--primario pag__ir" data-ir>Ir para o pagamento</button>
+        <p class="pag__apoio">Você vai para o Mercado Pago: cartão em até 12x, Pix ou saldo.</p>
+        <button type="button" class="pag__link" data-pix-direto>Prefere Pix direto?</button>
+    </form>
+
+    {/* Etapa Pix: plano B (task 22 §7.5), ou o caminho padrão com o Mercado Pago desligado. */}
+    <div data-etapa-pix>
+    <p class="pag__aviso" data-pix-aviso hidden>
+        Neste caminho a confirmação não é automática: o presente pode continuar aparecendo na
+        lista por um tempo.
+    </p>
+    <p class="pag__aviso" data-pix-livre hidden>Digite o valor no app do banco.</p>
 
     <div class="pix__qr" data-pix-qr aria-hidden="true"></div>
 
@@ -172,15 +228,17 @@ const itens = configurado
             rel="noopener">avise a gente no WhatsApp</a
         >.
     </p>
+    </div>
 </dialog>
 
 <script>
-    import { modalPix } from '../lib/copiar';
+    import { modalPresente } from '../lib/checkout';
     import { aplicarStatus } from '../lib/status';
 
-    modalPix();
-    // Sobrepõe a disponibilidade vinda do backend. Se falhar, a página fica como está.
-    void aplicarStatus();
+    // A disponibilidade chega do backend e diz também se o pagamento é pelo Mercado Pago.
+    // Se falhar, a página fica como está e o modal tenta o checkout mesmo assim.
+    const status = aplicarStatus();
+    modalPresente(status);
 </script>
 
 <style>
@@ -218,6 +276,8 @@ const itens = configurado
      * cantos de cima, já que ela sangra até a borda.
      */
     .presente {
+        /* Link direto (/presentes#geladeira, "Tentar de novo" do retorno): não parar sob a nav fixa. */
+        scroll-margin-block-start: 6rem;
         display: flex;
         flex-direction: column;
         background: var(--bg-alt);
@@ -345,6 +405,11 @@ const itens = configurado
         text-decoration-thickness: 1px;
         color: var(--texto-suave);
     }
+    /* Reservado (task 22): alguém está pagando a última cota. Sem riscar, pode voltar. */
+    .presente[data-reservado] {
+        box-shadow: none;
+    }
+
     .presente__botao:disabled {
         background: transparent;
         border: 1px solid var(--borda);
@@ -373,6 +438,11 @@ const itens = configurado
         background: var(--creme);
         color: var(--oliva);
         text-align: center;
+    }
+    /* Com a etapa de dados (task 22) o modal cresce: rola por dentro em tela baixa. */
+    .pix {
+        max-block-size: 92svh;
+        overflow-y: auto;
     }
     .pix::backdrop {
         background: color-mix(in srgb, #48492a 88%, transparent);
@@ -447,6 +517,84 @@ const itens = configurado
         font-weight: 600;
         color: var(--laranja-texto);
     }
+    /* --- Etapa de dados (task 22) --- */
+    .pag {
+        display: grid;
+        gap: var(--e-2);
+        text-align: start;
+    }
+    .pag__campo {
+        display: grid;
+        gap: 0.3rem;
+    }
+    .pag label {
+        font-size: var(--t-sm);
+        font-weight: 600;
+    }
+    .pag__opcional {
+        font-weight: 400;
+        color: var(--texto-suave);
+    }
+    .pag input,
+    .pag textarea {
+        inline-size: 100%;
+        min-block-size: 44px;
+        padding: 0.6rem 0.75rem;
+        background: var(--bg);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+        color: var(--texto);
+        font-size: 1rem; /* 16px: abaixo disso o iOS dá zoom ao focar */
+    }
+    .pag textarea {
+        resize: vertical;
+    }
+    .pag input[aria-invalid='true'] {
+        border: 2px solid var(--laranja-texto);
+    }
+    .pag__ajuda,
+    .pag__apoio {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .pag__apoio {
+        text-align: center;
+    }
+    .pag__erro,
+    .pag__aviso {
+        font-size: var(--t-sm);
+        font-weight: 600;
+        color: var(--laranja-texto);
+    }
+    .pag__aviso {
+        margin-block-end: var(--e-2);
+    }
+    .pag__ir {
+        inline-size: 100%;
+        border-radius: var(--raio-produto);
+    }
+    .pag__link {
+        justify-self: center;
+        min-block-size: 44px;
+        background: none;
+        border: 0;
+        color: var(--link);
+        font-size: var(--t-sm);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+    .pag__mel {
+        position: absolute;
+        inset-inline-start: -9999px;
+        inline-size: 1px;
+        block-size: 1px;
+        opacity: 0;
+    }
+    .pix [hidden] {
+        display: none !important;
+    }
+
     .pix__whats {
         margin-block-start: var(--e-2);
         font-size: var(--t-xs);

@@ -16,7 +16,8 @@
         "lighthouse": "node tools/lighthouse.mjs",
         "catalogo": "node tools/catalogo.mjs && node tools/imagens.mjs",
         "imagens": "node tools/imagens.mjs",
-        "og": "node tools/og.mjs"
+        "og": "node tools/og.mjs",
+        "test:backend": "node --test \"tests/backend/*.test.mjs\""
     },
     "dependencies": {
         "@fontsource-variable/bodoni-moda": "^5.2.8",

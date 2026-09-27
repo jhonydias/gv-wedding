@@ -30,8 +30,15 @@ const ABAS = {
 };
 
 const COLUNAS = {
-    Presentes: ['id', 'nome', 'valor', 'faixa', 'imagem', 'descricao', 'ativo', 'cotas', 'ordem'],
-    Pagamentos: ['id', 'presente_id', 'nome', 'contato', 'valor', 'status', 'criado_em', 'confirmado_em'],
+    // Colunas novas entram SEMPRE no fim: a planilha em uso já tem as antigas, e
+    // `garantirEsquema_()` só acrescenta o que falta à direita (task 22 §5.1).
+    Presentes: ['id', 'nome', 'valor', 'faixa', 'imagem', 'descricao', 'ativo', 'cotas', 'ordem', 'valor_livre'],
+    Pagamentos: [
+        'id', 'presente_id', 'nome', 'contato', 'valor', 'status', 'criado_em', 'confirmado_em',
+        // task 22: Mercado Pago
+        'canal', 'expira_em', 'mp_payment_id', 'mp_status', 'mp_status_detail', 'metodo',
+        'parcelas', 'valor_pago', 'recado', 'atualizado_em', 'conciliado_em', 'alerta',
+    ],
     // `acompanhantes`, `restricao` e `descadastrado` não são mais usados (o site não pede
     // acompanhantes nem restrição, e não há descadastro), mas FICAM: as linhas são gravadas
     // por posição, e tirar uma coluna daqui desalinharia tudo numa planilha que já as tem.
@@ -44,6 +51,15 @@ const COLUNAS = {
     Config: ['chave', 'valor'],
     Log: ['carimbo', 'nivel', 'acao', 'detalhe'],
 };
+
+/**
+ * URL /exec da implantação em uso. Não é segredo: está no HTML do site (PUBLIC_BACKEND_URL).
+ * Vai no `notification_url` do Mercado Pago. `ScriptApp.getService().getUrl()` não serve:
+ * pode devolver a URL /dev ou a de outra implantação. Declarada ANTES do CONFIG_PADRAO,
+ * que a usa na carga do script.
+ */
+const BACKEND_URL_PADRAO =
+    'https://script.google.com/macros/s/AKfycbw9jsSxeakkfiW36wjFstHXo7w7Cmq1yYdKjmDKAELD9z9rdC5MW4OryMEK_-V58r69YA/exec';
 
 /** Padrões da aba Config. `configurarPlanilha()` grava estes valores. */
 const CONFIG_PADRAO = [
@@ -62,6 +78,13 @@ const CONFIG_PADRAO = [
     // ⚠️ TRUE = nada é enviado de verdade. Só vire para FALSE com autorização dos noivos.
     ['modo_simulacao', 'TRUE'],
     ['lote_email_max', '80'],
+    // Task 22. `pix` = Mercado Pago desligado (o site usa o Pix estático); `teste` = só
+    // quem abre o site com ?teste=<mp_chave_teste> chega ao checkout; `mercadopago` = todos.
+    ['pagamento_modo', 'pix'],
+    ['backend_url', BACKEND_URL_PADRAO],
+    ['reserva_minutos', '30'],
+    ['parcelas_max', '12'],
+    ['valor_livre_max', '5000'],
 ];
 
 const LIMITES = {
@@ -173,8 +196,16 @@ function instalarGatilhos() {
         if (t.getHandlerFunction() === 'rodarCampanhas') ScriptApp.deleteTrigger(t);
     });
     ScriptApp.newTrigger('rodarCampanhas').timeBased().atHour(9).everyDays(1).create();
-    log_('info', 'instalarGatilhos', 'campanha diária às 9h');
-    return 'gatilho instalado';
+
+    // Task 22 §6.4: varredura dos pagamentos do Mercado Pago. É o caminho que não depende
+    // de webhook nem de o convidado ficar na página.
+    ScriptApp.getProjectTriggers().forEach(function (t) {
+        if (t.getHandlerFunction() === 'varrerPagamentos') ScriptApp.deleteTrigger(t);
+    });
+    ScriptApp.newTrigger('varrerPagamentos').timeBased().everyMinutes(10).create();
+
+    log_('info', 'instalarGatilhos', 'campanha diária às 9h; varredura de pagamentos a cada 10 min');
+    return 'gatilhos instalados';
 }
 
 // ============================================================ leitura (doGet)
@@ -184,11 +215,21 @@ function doGet(e) {
     try {
         switch (acao) {
             case 'ping':
-                return json_({ ok: true, versao: '17.0', hora: new Date().toISOString() });
+                return json_({
+                    ok: true,
+                    versao: '22.0',
+                    hora: new Date().toISOString(),
+                    pagamento: modoPagamento_(config_()),
+                    mp: mpToken_() ? (PropertiesService.getScriptProperties().getProperty('mp_ambiente') || '?') : 'sem_token',
+                });
             case 'catalogo':
                 return json_({ ok: true, presentes: catalogo_() });
             case 'status':
-                return json_({ ok: true, status: statusPresentes_() });
+                // `pagamento` diz ao site se o botão abre o checkout (mercadopago/teste) ou
+                // o Pix estático (pix). Vem aqui porque a página já faz esta chamada (task 22).
+                return json_({ ok: true, status: statusPresentes_(), pagamento: modoPagamento_(config_()) });
+            case 'pagamento':
+                return json_(pagamentoPublico_(e.parameter.ref));
             default:
                 return json_({ ok: false, msg: 'Ação desconhecida.' });
         }
@@ -220,6 +261,7 @@ function catalogo_() {
                 descricao: String(p.descricao || ''),
                 cotas: p.cotas === '' || p.cotas === null ? null : Number(p.cotas),
                 ordem: Number(p.ordem) || 0,
+                valor_livre: ehVerdadeiro_(p.valor_livre),
             };
         })
         .sort(function (a, b) { return a.ordem - b.ordem; });
@@ -240,21 +282,15 @@ function statusPresentes_() {
     const bruto = cache.get('status');
     if (bruto) return JSON.parse(bruto);
 
-    const confirmados = {};
-    lerAba_(ABAS.PAGAMENTOS).forEach(function (p) {
-        if (String(p.status).toLowerCase() !== 'confirmado') return;
-        const id = String(p.presente_id).trim();
-        if (!id) return;
-        confirmados[id] = (confirmados[id] || 0) + 1;
-    });
+    const conta = contarUso_(lerAba_(ABAS.PAGAMENTOS), Date.now());
 
     const saida = {};
     catalogo_().forEach(function (p) {
-        const usadas = confirmados[p.id] || 0;
-        const ilimitado = p.cotas === null || p.cotas <= 0;
+        const d = disponibilidade_(p.cotas, conta[p.id]);
         saida[p.id] = {
-            disponivel: ilimitado || usadas < p.cotas,
-            cotasRestantes: ilimitado ? null : Math.max(0, p.cotas - usadas),
+            disponivel: d.disponivel,
+            cotasRestantes: d.restantes,
+            reservado: d.reservado,
         };
     });
 
@@ -262,9 +298,58 @@ function statusPresentes_() {
     return saida;
 }
 
+/**
+ * Conta, por presente, os pagamentos confirmados e as reservas ATIVAS (task 22 §5.3).
+ * Reserva = checkout do Mercado Pago `pendente` com `expira_em` no futuro. O Pix manual
+ * (task 10) nunca reservou, e continua não reservando.
+ */
+function contarUso_(linhas, agoraMs) {
+    const c = {};
+    linhas.forEach(function (p) {
+        const id = String(p.presente_id).trim();
+        if (!id) return;
+        if (!c[id]) c[id] = { confirmados: 0, reservas: 0 };
+        const st = String(p.status).toLowerCase();
+        if (st === 'confirmado') c[id].confirmados++;
+        else if (st === 'pendente' && String(p.canal) === 'mercadopago') {
+            const exp = p.expira_em ? new Date(p.expira_em).getTime() : 0;
+            if (exp > agoraMs) c[id].reservas++;
+        }
+    });
+    return c;
+}
+
+/** `cotas` null ou <= 0 = ilimitado: nunca esgota e nunca reserva. */
+function disponibilidade_(cotas, uso) {
+    const u = uso || { confirmados: 0, reservas: 0 };
+    const ilimitado = cotas === null || cotas === '' || !(Number(cotas) > 0);
+    if (ilimitado) return { disponivel: true, restantes: null, reservado: false, ilimitado: true };
+    const restantes = Math.max(0, Number(cotas) - u.confirmados);
+    const livres = restantes - u.reservas;
+    return {
+        disponivel: livres > 0,
+        restantes: restantes,
+        reservado: livres <= 0 && restantes > 0,
+        ilimitado: false,
+    };
+}
+
 // ============================================================ escrita (doPost)
 
 function doPost(e) {
+    // Webhook do Mercado Pago (task 22 §6.5): antes de tudo, inclusive do parse, porque o
+    // IPN antigo pode vir sem corpo. Responde 200 SEMPRE; quem reenvia é o Mercado Pago, e a
+    // varredura cobre o que se perder.
+    if (e && e.parameter && e.parameter.acao === 'mp_webhook') {
+        try {
+            mpWebhook_(e);
+        } catch (err) {
+            console.error(err);
+            log_('erro', 'mp_webhook', String(err));
+        }
+        return json_({ ok: true });
+    }
+
     // Ações dos noivos (task 17) pegam o lock só em volta da gravação: elas fazem rede
     // (pré-voo da imagem, disparo do deploy) e não podem prender o RSVP dos convidados.
     let dadosAdmin = null;
@@ -273,6 +358,19 @@ function doPost(e) {
     } catch (err) {
         dadosAdmin = null;
     }
+    // Checkout (task 22): fora do lock global, que prenderia o RSVP durante a chamada ao
+    // Mercado Pago. Ele pega o lock só para gravar a reserva.
+    if (dadosAdmin && dadosAdmin.acao === 'checkout') {
+        if (dadosAdmin._gotcha) return json_({ ok: true });
+        try {
+            return json_(checkout_(dadosAdmin));
+        } catch (err) {
+            console.error(err);
+            log_('erro', 'checkout', String(err));
+            return json_({ ok: false, motivo: 'indisponivel', msg: 'Não conseguimos abrir o pagamento agora.' });
+        }
+    }
+
     if (dadosAdmin && ACOES_ADMIN.indexOf(dadosAdmin.acao) !== -1) {
         try {
             return json_(admin_(dadosAdmin));
@@ -438,10 +536,19 @@ function reservar_(bruto) {
     }
 
     const agora = new Date();
-    aba_(ABAS.PAGAMENTOS).appendRow([
-        Utilities.getUuid(), presenteId, nome, limpar_(bruto.contato, 120),
-        presente.valor, 'pendente', agora, '',
-    ]);
+    const t = lerTabela_(ABAS.PAGAMENTOS);
+    t.aba.appendRow(linhaPara_(t.cab, {
+        id: Utilities.getUuid(),
+        presente_id: presenteId,
+        nome: textoSeguro_(nome),
+        contato: textoSeguro_(limpar_(bruto.contato, 120)),
+        valor: presente.valor,
+        status: 'pendente',
+        criado_em: agora,
+        // Task 22: o Pix manual não reserva cota (sem expira_em) e é confirmado à mão.
+        canal: 'pix_manual',
+        atualizado_em: agora,
+    }));
 
     // O status muda; invalida o cache para o próximo visitante já ver.
     CacheService.getScriptCache().remove('status');
@@ -456,7 +563,10 @@ function reservar_(bruto) {
  * Os noivos criam, editam e apagam presentes pela tela `/noivos/presentes` do site.
  * Tudo aqui exige a senha dos noivos. Ver tasks/17/task_text.md.
  */
-const ACOES_ADMIN = ['entrar', 'listarPresentes', 'criarPresente', 'editarPresente', 'apagarPresente'];
+const ACOES_ADMIN = [
+    'entrar', 'listarPresentes', 'criarPresente', 'editarPresente', 'apagarPresente',
+    'listarRecebidos', // task 22 §8
+];
 
 /**
  * Senha dos noivos: só o hash fica no código, porque o repositório é público.
@@ -567,6 +677,8 @@ function admin_(d) {
             return { ok: true };
         case 'listarPresentes':
             return { ok: true, presentes: listarPresentes_() };
+        case 'listarRecebidos':
+            return { ok: true, recebidos: listarRecebidos_() };
     }
 
     let r;
@@ -591,7 +703,12 @@ function admin_(d) {
  * vizinho. Para ler, tanto faz; para editar e apagar, seria mexer no presente errado.
  */
 function lerPresentes_() {
-    const aba = aba_(ABAS.PRESENTES);
+    return lerTabela_(ABAS.PRESENTES);
+}
+
+/** Mesma leitura, para qualquer aba: número REAL da linha, para escrever com segurança. */
+function lerTabela_(nome) {
+    const aba = aba_(nome);
     const valores = aba.getDataRange().getValues();
     const cab = valores[0].map(String);
     const linhas = [];
@@ -615,7 +732,7 @@ function contagemPagamentos_() {
     lerAba_(ABAS.PAGAMENTOS).forEach(function (p) {
         const id = String(p.presente_id).trim();
         if (!id) return;
-        if (!c[id]) c[id] = { pendente: 0, confirmado: 0, cancelado: 0, total: 0 };
+        if (!c[id]) c[id] = { pendente: 0, confirmado: 0, cancelado: 0, recusado: 0, expirado: 0, estornado: 0, total: 0 };
         const st = String(p.status).toLowerCase();
         if (c[id][st] !== undefined) c[id][st]++;
         c[id].total++;
@@ -635,7 +752,8 @@ function presenteDaLinha_(p, pagamentos) {
         cotas: p.cotas === '' || p.cotas === null ? null : Number(p.cotas),
         ativo: ehVerdadeiro_(p.ativo),
         ordem: Number(p.ordem) || 0,
-        pagamentos: pagamentos[id] || { pendente: 0, confirmado: 0, cancelado: 0, total: 0 },
+        pagamentos: pagamentos[id] || { pendente: 0, confirmado: 0, cancelado: 0, recusado: 0, expirado: 0, estornado: 0, total: 0 },
+        valor_livre: ehVerdadeiro_(p.valor_livre),
         versao: versaoDe_(p),
     };
 }
@@ -749,6 +867,12 @@ function validarPresente_(d) {
     }
 
     const luademel = d.luademel === true;
+    // Task 22 §5.4: o convidado escolhe o valor; `valor` vira o mínimo. Só faz sentido sem
+    // limite de pessoas (uma "cota única" de valor livre não tem significado).
+    const valorLivre = d.valor_livre === true;
+    if (valorLivre && cotas !== '') {
+        return erro('cotas', 'Com valor livre, escolha "Sem limite": cada pessoa dá quanto quiser.');
+    }
     return {
         ok: true,
         avisos: avisos,
@@ -760,6 +884,7 @@ function validarPresente_(d) {
             descricao: descricao,
             ativo: d.publicar !== false,
             cotas: cotas,
+            valor_livre: valorLivre,
         },
     };
 }
@@ -867,6 +992,7 @@ function criarPresente_(d) {
             ativo: c.ativo,
             cotas: c.cotas,
             ordem: ordem,
+            valor_livre: c.valor_livre,
         }));
         log_('info', 'criarPresente', id + ' · ' + c.nome + ' · R$ ' + c.valor);
         return { ok: true, id: id, nome: c.nome, faixa: c.faixa, avisos: v.avisos };
@@ -937,6 +1063,8 @@ function editarPresente_(d) {
             ativo: c.ativo,
             cotas: c.cotas,
             ordem: ordem,
+            // linhaPara_ grava a linha INTEIRA: coluna esquecida aqui seria apagada.
+            valor_livre: c.valor_livre,
         })]);
         log_('info', 'editarPresente', id + ' · ' + JSON.stringify(c));
         return { ok: true, id: id, nome: c.nome, faixa: c.faixa, avisos: v.avisos };
@@ -998,6 +1126,728 @@ function dispararDeploy_() {
         log_('erro', 'dispararDeploy', String(e));
     }
     return 'agendada';
+}
+
+// ============================================================ Mercado Pago (task 22)
+
+/**
+ * Pagamento pelo Checkout Pro, com confirmação automática. Ver tasks/22/task_text.md.
+ *
+ * Regra que sustenta tudo: o ÚNICO que muda o status de um pagamento é `conciliar_()`, e
+ * ele só decide depois de perguntar à API do Mercado Pago. Webhook, página de retorno e
+ * varredura só dizem "confira este". O navegador nunca marca nada como pago (foi o defeito
+ * do wedding-web: `retorno.html?id=X` tirava qualquer presente do ar).
+ */
+const MP = {
+    API: 'https://api.mercadopago.com',
+    RESERVA_MIN_PADRAO: 30,
+    /** Pix pago no último minuto: só expira a reserva depois desta folga. */
+    FOLGA_EXPIRAR_MS: 15 * 60 * 1000,
+    /** Freio do polling da página de retorno: no máximo uma consulta à API por ref nesta janela. */
+    POLL_MIN_S: 5,
+    /** Folga antes do limite de 6 min de execução do Apps Script. */
+    VARREDURA_TEMPO_MS: 4.5 * 60 * 1000,
+    /** Estornos e contestações são vigiados nos confirmados desta janela. */
+    ESTORNO_DIAS: 180,
+    VALOR_LIVRE_MAX_PADRAO: 5000,
+    DESCRITOR_FATURA: 'GISELEVICTOR',
+};
+
+/** status do Mercado Pago → status da linha. O que não está aqui fica `pendente`. */
+const STATUS_MP_ = {
+    approved: 'confirmado',
+    in_mediation: 'confirmado', // disputa aberta: o dinheiro entrou; vai com alerta
+    rejected: 'recusado',
+    cancelled: 'cancelado',
+    refunded: 'estornado',
+    charged_back: 'estornado',
+};
+
+function propsMp_() {
+    return PropertiesService.getScriptProperties();
+}
+
+function mpToken_() {
+    return propsMp_().getProperty('mp_access_token') || '';
+}
+
+/** `pix` (desligado), `teste` ou `mercadopago`. Qualquer outro valor conta como `pix`. */
+function modoPagamento_(cfg) {
+    const m = String((cfg && cfg.pagamento_modo) || '').trim().toLowerCase();
+    return m === 'mercadopago' || m === 'teste' ? m : 'pix';
+}
+
+/** Segredo do `notification_url`. Gerado na primeira vez que alguém precisa dele. */
+function segredoWebhook_() {
+    const props = propsMp_();
+    let s = props.getProperty('segredo_webhook');
+    if (!s) {
+        s = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
+        props.setProperty('segredo_webhook', s);
+    }
+    return s;
+}
+
+/** Chave do modo `teste`: quem abre o site com ?teste=<chave> chega ao checkout. */
+function chaveTeste_() {
+    const props = propsMp_();
+    let s = props.getProperty('mp_chave_teste');
+    if (!s) {
+        s = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+        props.setProperty('mp_chave_teste', s);
+    }
+    return s;
+}
+
+/** ISO 8601 com offset de Belém, o formato que a API aceita nas datas da preferência. */
+function isoBelem_(d) {
+    return Utilities.formatDate(d, FUSO_, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+}
+
+/** Chamada à API. Lança em qualquer resposta fora de 2xx; nunca registra o token. */
+function mpFetch_(metodo, caminho, corpo, chaveIdempotencia) {
+    const opcoes = {
+        method: metodo,
+        muteHttpExceptions: true,
+        headers: { Authorization: 'Bearer ' + mpToken_() },
+    };
+    if (corpo) {
+        opcoes.contentType = 'application/json';
+        opcoes.payload = JSON.stringify(corpo);
+    }
+    if (chaveIdempotencia) opcoes.headers['X-Idempotency-Key'] = chaveIdempotencia;
+    const r = UrlFetchApp.fetch(MP.API + caminho, opcoes);
+    const cod = r.getResponseCode();
+    const texto = r.getContentText();
+    if (cod < 200 || cod >= 300) {
+        throw new Error('MP ' + metodo.toUpperCase() + ' ' + caminho.split('?')[0] + ' -> ' + cod + ' ' + String(texto).slice(0, 300));
+    }
+    return texto ? JSON.parse(texto) : {};
+}
+
+/**
+ * Acrescenta à direita as colunas que faltam em `Pagamentos` e `Presentes`, sem tocar em
+ * nenhuma linha. Roda sozinha antes da primeira escrita (cacheada por 6 h), para que o
+ * deploy desta task não dependa de alguém lembrar de rodar uma função no editor.
+ */
+function garantirEsquema_() {
+    const cache = CacheService.getScriptCache();
+    if (cache.get('esquema_22')) return;
+    [ABAS.PAGAMENTOS, ABAS.PRESENTES].forEach(function (nome) {
+        const aba = aba_(nome);
+        const ultima = Math.max(aba.getLastColumn(), 1);
+        const cab = aba.getRange(1, 1, 1, ultima).getValues()[0].map(String);
+        const faltam = COLUNAS[nome].filter(function (c) { return cab.indexOf(c) === -1; });
+        if (!faltam.length) return;
+        const inicio = cab.filter(function (c) { return c !== ''; }).length + 1;
+        aba.getRange(1, inicio, 1, faltam.length).setValues([faltam]).setFontWeight('bold');
+        if (nome === ABAS.PAGAMENTOS) {
+            // Id do Mercado Pago passa de 2^53: como número, o Sheets arredonda (§5.1).
+            const col = inicio + faltam.indexOf('mp_payment_id');
+            if (faltam.indexOf('mp_payment_id') !== -1) aba.getRange(1, col, aba.getMaxRows(), 1).setNumberFormat('@');
+        }
+        log_('info', 'garantirEsquema', nome + ': +' + faltam.join(', '));
+    });
+    cache.put('esquema_22', '1', 21600);
+}
+
+// ---------------------------------------------------------------- checkout
+
+function checkout_(bruto) {
+    const cfg = config_();
+    const modo = modoPagamento_(cfg);
+    const indisponivel = { ok: false, motivo: 'indisponivel' };
+    if (modo === 'pix' || !mpToken_()) return indisponivel;
+    if (modo === 'teste' && !iguais_(String(bruto.chave_teste || ''), chaveTeste_())) return indisponivel;
+
+    const presenteId = limpar_(bruto.presente_id, 60);
+    const nome = semTravessao_(limpar_(bruto.nome, 80));
+    const contato = limpar_(bruto.contato, 120);
+    const recado = semTravessao_(limpar_(bruto.recado, 280));
+    if (nome.length < 2) return { ok: false, campo: 'nome', msg: 'Escreva seu nome, para os noivos saberem quem deu.' };
+    if (contato && !contatoValido_(contato)) {
+        return { ok: false, campo: 'contato', msg: 'Informe um e-mail ou celular válido, ou deixe em branco.' };
+    }
+
+    garantirEsquema_();
+    const minutos = Number(cfg.reserva_minutos) > 0 ? Number(cfg.reserva_minutos) : MP.RESERVA_MIN_PADRAO;
+
+    // Reserva COM lock, uma vez por pedido_id (toque duplo não reserva duas vezes).
+    const r = gravarUmaVez_(bruto.pedido_id, function () {
+        const p = lerPresentes_().linhas.filter(function (l) {
+            return String(l.id).trim() === presenteId && ehVerdadeiro_(l.ativo);
+        })[0];
+        if (!p) return { ok: false, motivo: 'nao_existe', msg: 'Este presente não está mais na lista.' };
+
+        // O VALOR VEM DAQUI, nunca do cliente. Exceção: valor livre, validado no intervalo.
+        let valor = Number(p.valor);
+        if (ehVerdadeiro_(p.valor_livre)) {
+            const v = Number(bruto.valor);
+            const max = Number(cfg.valor_livre_max) > 0 ? Number(cfg.valor_livre_max) : MP.VALOR_LIVRE_MAX_PADRAO;
+            if (!Number.isInteger(v) || v < valor || v > max) {
+                return { ok: false, campo: 'valor', msg: 'Escolha um valor em reais, sem centavos, entre R$ ' + valor + ' e R$ ' + max + '.' };
+            }
+            valor = v;
+        }
+
+        const tp = lerTabela_(ABAS.PAGAMENTOS);
+        const cotas = p.cotas === '' || p.cotas === null ? null : Number(p.cotas);
+        const d = disponibilidade_(cotas, contarUso_(tp.linhas, Date.now())[presenteId]);
+        if (!d.disponivel) {
+            return {
+                ok: false,
+                motivo: 'indisponivel_presente',
+                reservado: d.reservado,
+                msg: d.reservado
+                    ? 'Alguém está finalizando este presente agora. Escolha outro ou tente de novo em meia hora.'
+                    : 'Este presente acabou de ser dado. Obrigado mesmo assim!',
+            };
+        }
+
+        const ref = Utilities.getUuid();
+        const agora = new Date();
+        const expira = new Date(agora.getTime() + minutos * 60000);
+        tp.aba.appendRow(linhaPara_(tp.cab, {
+            id: ref,
+            presente_id: presenteId,
+            nome: textoSeguro_(nome),
+            contato: textoSeguro_(contato),
+            valor: valor,
+            status: 'pendente',
+            criado_em: agora,
+            canal: 'mercadopago',
+            expira_em: expira,
+            recado: textoSeguro_(recado),
+            atualizado_em: agora,
+        }));
+        CacheService.getScriptCache().remove('status');
+        return {
+            ok: true,
+            ref: ref,
+            _p: { id: presenteId, nome: String(p.nome), imagem: String(p.imagem || ''), valor: valor, nomeConvidado: nome },
+            _expira: expira.getTime(),
+        };
+    });
+
+    if (!r.ok) return r;
+    if (r.init_point) return { ok: true, ref: r.ref, init_point: r.init_point }; // reenvio do mesmo pedido
+
+    // Preferência SEM lock: é rede.
+    let initPoint;
+    try {
+        initPoint = criarPreferencia_(r.ref, r._p, new Date(r._expira), cfg);
+    } catch (err) {
+        log_('erro', 'checkout:preferencia', String(err));
+        liberarReserva_(r.ref, 'falha_preferencia');
+        return indisponivel;
+    }
+    const final = { ok: true, ref: r.ref, init_point: initPoint };
+    lembrarPedido_(bruto.pedido_id, final);
+    log_('info', 'checkout', r._p.id + ' · R$ ' + r._p.valor + ' · ' + r.ref);
+    return final;
+}
+
+/** Corpo da preferência: task 22 §6.2, campo a campo. */
+function corpoPreferencia_(ref, p, expira, cfg) {
+    const site = String(cfg.site_url || '').replace(/\/+$/, '');
+    const volta = site + '/presentes/obrigado/?ref=' + encodeURIComponent(ref);
+    const backend = String(cfg.backend_url || BACKEND_URL_PADRAO).trim();
+    const item = {
+        id: p.id,
+        title: String(p.nome).slice(0, 250),
+        description: 'Presente de casamento para Gisele e Victor',
+        category_id: 'others',
+        quantity: 1,
+        currency_id: 'BRL',
+        unit_price: p.valor,
+    };
+    if (/^https:\/\//i.test(p.imagem)) item.picture_url = p.imagem;
+    return {
+        items: [item],
+        payer: { name: p.nomeConvidado },
+        external_reference: ref,
+        notification_url: backend + '?acao=mp_webhook&chave=' + segredoWebhook_(),
+        back_urls: { success: volta, pending: volta, failure: volta },
+        auto_return: 'approved',
+        // Cartão aprova ou recusa na hora: nada de `in_process` segurando a reserva.
+        binary_mode: true,
+        statement_descriptor: MP.DESCRITOR_FATURA,
+        // O link e o Pix morrem junto com a reserva: ninguém paga por algo já solto.
+        expires: true,
+        expiration_date_from: isoBelem_(new Date(Date.now() - 60000)),
+        expiration_date_to: isoBelem_(expira),
+        date_of_expiration: isoBelem_(expira),
+        payment_methods: {
+            // Boleto e lotérica compensam em até 3 dias úteis; a reserva é de 30 min.
+            excluded_payment_types: [{ id: 'ticket' }, { id: 'atm' }],
+            installments: Number(cfg.parcelas_max) > 0 ? Number(cfg.parcelas_max) : 12,
+        },
+        metadata: { presente_id: p.id, origem: 'gv-wedding' },
+    };
+}
+
+function criarPreferencia_(ref, p, expira, cfg) {
+    // Idempotência pela ref: uma retentativa nossa não cria duas preferências.
+    const j = mpFetch_('post', '/checkout/preferences', corpoPreferencia_(ref, p, expira, cfg), ref);
+    if (!j.init_point) throw new Error('preferência sem init_point: ' + JSON.stringify(j).slice(0, 200));
+    return j.init_point;
+}
+
+/** Falhou depois de reservar: solta a cota na hora, em vez de esperar 30 min. */
+function liberarReserva_(ref, alerta) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(LIMITES.LOCK_MS);
+    try {
+        const t = lerTabela_(ABAS.PAGAMENTOS);
+        const l = t.linhas.filter(function (x) { return String(x.id) === ref; })[0];
+        if (!l || String(l.status) !== 'pendente') return;
+        gravarLinha_(t, l, { status: 'cancelado', alerta: alerta, atualizado_em: new Date() });
+        CacheService.getScriptCache().remove('status');
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+/**
+ * Regrava a linha inteira com as mudanças. `mp_payment_id` sempre com apóstrofo: sem ele,
+ * o Sheets converte o texto numérico em número e arredonda (task 22 §5.1).
+ */
+function gravarLinha_(t, linha, mudancas) {
+    const o = {};
+    t.cab.forEach(function (c) { o[c] = linha[c]; });
+    Object.keys(mudancas).forEach(function (k) { o[k] = mudancas[k]; });
+    if (o.mp_payment_id !== undefined && o.mp_payment_id !== '' && o.mp_payment_id !== null) {
+        o.mp_payment_id = "'" + String(o.mp_payment_id).replace(/^'/, '');
+    }
+    ['nome', 'contato', 'recado'].forEach(function (c) {
+        if (typeof o[c] === 'string') o[c] = textoSeguro_(o[c]);
+    });
+    t.aba.getRange(linha._linha, 1, 1, t.cab.length).setValues([linhaPara_(t.cab, o)]);
+    Object.keys(mudancas).forEach(function (k) { linha[k] = mudancas[k]; });
+}
+
+// ---------------------------------------------------------------- conciliação
+
+/**
+ * O coração (task 22 §6.4). Pergunta ao Mercado Pago tudo que existe com esta
+ * external_reference e leva a linha ao estado certo. Idempotente: chamar dez vezes dá o
+ * mesmo resultado que chamar uma. Devolve { mudou, status, alerta } ou null.
+ */
+function conciliar_(ref) {
+    if (!ref || !mpToken_()) return null;
+    garantirEsquema_();
+
+    // 1. Rede, SEM lock.
+    const busca = mpFetch_('get', '/v1/payments/search?external_reference=' + encodeURIComponent(ref) +
+        '&sort=date_created&criteria=desc&limit=50');
+    const pagamentos = (busca.results || []).filter(function (p) { return String(p.external_reference) === ref; });
+    const aprovados = pagamentos
+        .filter(function (p) { return p.status === 'approved' || p.status === 'in_mediation'; })
+        .sort(function (a, b) { return String(a.date_created).localeCompare(String(b.date_created)); });
+    // Algum aprovado vale mais que tudo; senão, o mais recente.
+    const vale = aprovados[0] || pagamentos[0] || null;
+    const estornado = !aprovados.length && pagamentos.some(function (p) {
+        return p.status === 'refunded' || p.status === 'charged_back';
+    });
+
+    // 2. Escrita, COM lock, relendo a linha pela ref.
+    const lock = LockService.getScriptLock();
+    lock.waitLock(LIMITES.LOCK_MS);
+    let resultado;
+    const avisos = [];
+    try {
+        const t = lerTabela_(ABAS.PAGAMENTOS);
+        const l = t.linhas.filter(function (x) { return String(x.id) === ref; })[0];
+        if (!l) {
+            log_('aviso', 'conciliar', 'ref sem linha: ' + ref);
+            return null;
+        }
+        const antes = String(l.status);
+        const agora = new Date();
+
+        if (!vale) {
+            // Nada no Mercado Pago ainda (convidado não pagou). Só registra a consulta.
+            gravarLinha_(t, l, { conciliado_em: agora });
+            return { mudou: false, status: antes, alerta: String(l.alerta || '') };
+        }
+
+        let alvo = STATUS_MP_[vale.status] || 'pendente';
+        if (estornado) alvo = 'estornado';
+        // Um confirmado só sai de confirmado por estorno.
+        if (antes === 'confirmado' && alvo !== 'confirmado' && alvo !== 'estornado') alvo = 'confirmado';
+        // Pendente no Mercado Pago não "desexpira" nem "desrecusa" uma linha já encerrada.
+        if (alvo === 'pendente' && antes !== 'pendente') alvo = antes;
+
+        const mud = {
+            mp_payment_id: String(vale.id),
+            mp_status: String(vale.status),
+            mp_status_detail: String(vale.status_detail || ''),
+            // No Pix o tipo vem como `bank_transfer`; quem diz "pix" é o payment_method_id.
+            metodo: vale.payment_method_id === 'pix' ? 'pix' : String(vale.payment_type_id || ''),
+            parcelas: Number(vale.installments) || '',
+            valor_pago: Number(vale.transaction_amount) || '',
+            conciliado_em: agora,
+        };
+        let alerta = String(l.alerta || '');
+
+        if (alvo === 'confirmado' && antes !== 'confirmado') {
+            const valorOk = Math.abs(Number(vale.transaction_amount) - Number(l.valor)) < 0.011;
+            const moedaOk = String(vale.currency_id) === 'BRL';
+            if (!valorOk || !moedaOk) {
+                // Não confirma presente de R$ 900 pago com R$ 9 (§6.6).
+                alvo = antes === 'pendente' ? 'pendente' : antes;
+                alerta = 'divergente';
+                avisos.push('[ATENÇÃO] Pagamento com valor diferente do presente: esperado R$ ' + l.valor +
+                    ', pago ' + vale.currency_id + ' ' + vale.transaction_amount + ' (ref ' + ref + ')');
+            } else {
+                // Cota já tomada por outro pagamento? Confirma mesmo assim (o dinheiro entrou).
+                const p = lerPresentes_().linhas.filter(function (x) { return String(x.id).trim() === String(l.presente_id); })[0];
+                const cotas = p && p.cotas !== '' && p.cotas !== null ? Number(p.cotas) : null;
+                const outros = t.linhas.filter(function (x) {
+                    return String(x.presente_id) === String(l.presente_id) && String(x.status) === 'confirmado' && String(x.id) !== ref;
+                }).length;
+                if (cotas && outros >= cotas) {
+                    alerta = 'excedente';
+                    avisos.push('[ATENÇÃO] Presente dado além do limite de pessoas (ref ' + ref + '). Decidam entre devolver pelo painel do Mercado Pago ou aceitar.');
+                }
+                if (vale.status === 'in_mediation') {
+                    alerta = alerta || 'disputa';
+                    avisos.push('[ATENÇÃO] Pagamento em disputa no Mercado Pago (ref ' + ref + ').');
+                }
+                mud.confirmado_em = agora;
+            }
+        }
+        if (alvo === 'estornado' && antes !== 'estornado') {
+            avisos.push('[ATENÇÃO] Pagamento devolvido ou contestado (ref ' + ref + '). O presente voltou para a lista.');
+        }
+
+        mud.status = alvo;
+        mud.alerta = alerta;
+        const mudou = alvo !== antes || alerta !== String(l.alerta || '') ||
+            String(l.mp_payment_id || '').replace(/^'/, '') !== String(vale.id) || String(l.mp_status) !== String(vale.status);
+        if (mudou) mud.atualizado_em = agora;
+        gravarLinha_(t, l, mud);
+
+        // Segundo pagamento aprovado na mesma ref: alguém pagou duas vezes (§6.6).
+        aprovados.slice(1).forEach(function (dup) {
+            const idDup = ref + '-dup-' + dup.id;
+            if (t.linhas.some(function (x) { return String(x.id) === idDup; })) return;
+            t.aba.appendRow(linhaPara_(t.cab, {
+                id: idDup, presente_id: l.presente_id, nome: textoSeguro_(String(l.nome)), contato: textoSeguro_(String(l.contato || '')),
+                valor: l.valor, status: 'confirmado', criado_em: agora, confirmado_em: agora, canal: 'mercadopago',
+                mp_payment_id: "'" + dup.id, mp_status: dup.status, metodo: dup.payment_type_id || '',
+                parcelas: dup.installments || '', valor_pago: dup.transaction_amount || '',
+                atualizado_em: agora, conciliado_em: agora, alerta: 'duplicado',
+            }));
+            avisos.push('[ATENÇÃO] ' + l.nome + ' pagou duas vezes o mesmo presente (ref ' + ref + '). Devolvam um pelo painel.');
+        });
+
+        if (mudou) CacheService.getScriptCache().remove('status');
+        resultado = { mudou: mudou, status: alvo, alerta: alerta, confirmouAgora: alvo === 'confirmado' && antes !== 'confirmado', linha: l };
+    } finally {
+        lock.releaseLock();
+    }
+
+    // 3. E-mail, SEM lock.
+    if (resultado && resultado.confirmouAgora) avisarPresente_(resultado.linha);
+    avisos.forEach(function (a) { avisarNoivos_(a.slice(0, 120), a); });
+    return { mudou: resultado.mudou, status: resultado.status, alerta: resultado.alerta };
+}
+
+// ---------------------------------------------------------------- webhook
+
+/**
+ * Aceita os formatos que o Mercado Pago usa (v2 no corpo, query, IPN antigo) e extrai só o
+ * id do pagamento. O webhook não traz status para dentro do sistema: ele só dispara uma
+ * consulta autenticada à API. Por isso não é preciso validar a assinatura (que o Apps Script
+ * nem conseguiria: não expõe cabeçalhos).
+ */
+function mpWebhook_(e) {
+    const q = e.parameter || {};
+    const segredo = propsMp_().getProperty('segredo_webhook') || '';
+    if (!segredo || !iguais_(String(q.chave || ''), segredo)) {
+        const cache = CacheService.getScriptCache();
+        if (!cache.get('webhook_chave_errada')) {
+            cache.put('webhook_chave_errada', '1', 3600);
+            log_('aviso', 'mp_webhook', 'chave ausente ou errada');
+        }
+        return;
+    }
+    let corpo = {};
+    try {
+        corpo = JSON.parse((e.postData && e.postData.contents) || '{}') || {};
+    } catch (err) {
+        corpo = {};
+    }
+    const tipo = String(corpo.type || q.type || q.topic || '').toLowerCase();
+    const acao = String(corpo.action || '');
+    if (tipo && tipo !== 'payment' && acao.indexOf('payment') !== 0) return; // merchant_order etc.
+    const id = String((corpo.data && corpo.data.id) || q['data.id'] || q.id || '').replace(/\D/g, '');
+    if (!id) return;
+
+    const pg = mpFetch_('get', '/v1/payments/' + id);
+    const ref = String(pg.external_reference || '');
+    const existe = ref && lerTabela_(ABAS.PAGAMENTOS).linhas.some(function (l) { return String(l.id) === ref; });
+    if (!existe) {
+        log_('aviso', 'mp_webhook', 'pagamento ' + id + ' sem ref nossa (' + (ref || 'vazia') + ')');
+        return;
+    }
+    conciliar_(ref);
+}
+
+// ---------------------------------------------------------------- consulta pública
+
+/** Para a página de retorno. Só o necessário, nunca contato, recado ou ids do Mercado Pago. */
+function pagamentoPublico_(refBruta) {
+    const ref = String(refBruta || '').trim();
+    const desconhecido = { ok: true, estado: 'desconhecido' };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return desconhecido;
+
+    const achar = function () {
+        return lerAba_(ABAS.PAGAMENTOS).filter(function (l) { return String(l.id) === ref; })[0];
+    };
+    let l = achar();
+    if (!l) return desconhecido;
+
+    if (String(l.status) === 'pendente' && String(l.canal) === 'mercadopago' && mpToken_()) {
+        const cache = CacheService.getScriptCache();
+        if (!cache.get('conc_' + ref)) {
+            cache.put('conc_' + ref, '1', MP.POLL_MIN_S);
+            try {
+                conciliar_(ref);
+                l = achar();
+            } catch (err) {
+                log_('erro', 'pagamento:conciliar', String(err));
+            }
+        }
+    }
+
+    const mapa = { confirmado: 'confirmado', recusado: 'recusado', expirado: 'expirado', cancelado: 'expirado', estornado: 'estornado' };
+    const presente = lerAba_(ABAS.PRESENTES).filter(function (p) { return String(p.id).trim() === String(l.presente_id); })[0];
+    return {
+        ok: true,
+        estado: mapa[String(l.status)] || 'pendente',
+        presente: presente ? String(presente.nome) : '',
+        presente_id: String(l.presente_id),
+        nome: String(l.nome),
+        metodo: String(l.metodo || ''),
+    };
+}
+
+// ---------------------------------------------------------------- varredura
+
+/**
+ * Gatilho a cada 10 min (instalarGatilhos). Pega o que o webhook e a página de retorno
+ * perderam, expira reservas vencidas e, uma vez por dia, confere estornos.
+ */
+function varrerPagamentos() {
+    if (!mpToken_()) return;
+    const inicio = Date.now();
+    const noTempo = function () { return Date.now() - inicio < MP.VARREDURA_TEMPO_MS; };
+
+    // 1. Pendentes: conciliar.
+    const pend = lerAba_(ABAS.PAGAMENTOS).filter(function (l) {
+        return String(l.canal) === 'mercadopago' && String(l.status) === 'pendente';
+    });
+    for (let i = 0; i < pend.length && noTempo(); i++) {
+        try {
+            conciliar_(String(pend[i].id));
+        } catch (err) {
+            log_('erro', 'varredura:conciliar', String(pend[i].id) + ' ' + String(err));
+        }
+    }
+
+    // 2. Expirar o que passou da reserva + folga e continua sem aprovação.
+    expirarVencidos_(Date.now());
+
+    // 3. Uma vez por dia, a partir das 3h: estornos e contestações, com cursor.
+    const props = propsMp_();
+    const hoje = Utilities.formatDate(new Date(), FUSO_, 'yyyy-MM-dd');
+    const hora = Number(Utilities.formatDate(new Date(), FUSO_, 'H'));
+    if (hora >= 3 && props.getProperty('estorno_dia') !== hoje && noTempo()) {
+        const limite = Date.now() - MP.ESTORNO_DIAS * 86400000;
+        const conf = lerAba_(ABAS.PAGAMENTOS).filter(function (l) {
+            return String(l.canal) === 'mercadopago' && String(l.status) === 'confirmado' &&
+                l.confirmado_em && new Date(l.confirmado_em).getTime() > limite;
+        });
+        let cursor = Number(props.getProperty('estorno_cursor') || 0);
+        while (cursor < conf.length && noTempo()) {
+            try {
+                conciliar_(String(conf[cursor].id));
+            } catch (err) {
+                log_('erro', 'varredura:estorno', String(err));
+            }
+            cursor++;
+        }
+        if (cursor >= conf.length) {
+            props.setProperty('estorno_dia', hoje);
+            props.deleteProperty('estorno_cursor');
+        } else {
+            props.setProperty('estorno_cursor', String(cursor));
+        }
+    }
+}
+
+function expirarVencidos_(agoraMs) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(LIMITES.LOCK_MS);
+    try {
+        const t = lerTabela_(ABAS.PAGAMENTOS);
+        let n = 0;
+        t.linhas.forEach(function (l) {
+            if (String(l.canal) !== 'mercadopago' || String(l.status) !== 'pendente' || !l.expira_em) return;
+            if (new Date(l.expira_em).getTime() + MP.FOLGA_EXPIRAR_MS > agoraMs) return;
+            gravarLinha_(t, l, { status: 'expirado', atualizado_em: new Date(agoraMs) });
+            n++;
+        });
+        if (n) {
+            CacheService.getScriptCache().remove('status');
+            log_('info', 'expirarVencidos', n + ' reserva(s) expirada(s)');
+        }
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+// ---------------------------------------------------------------- avisos aos noivos
+
+function avisarNoivos_(assunto, texto) {
+    const para = config_().email_noivos;
+    if (!para || para.indexOf('TODO') === 0) {
+        log_('aviso', 'avisarNoivos', assunto);
+        return;
+    }
+    enviarEmail_(para, assunto, texto, null);
+}
+
+/** "Presente recebido": o que alimenta os cartões de agradecimento (§6.7). */
+function avisarPresente_(l) {
+    const p = lerAba_(ABAS.PRESENTES).filter(function (x) { return String(x.id).trim() === String(l.presente_id); })[0];
+    const nomePresente = p ? String(p.nome) : String(l.presente_id);
+    const metodos = { credit_card: 'cartão de crédito', debit_card: 'cartão de débito', account_money: 'saldo Mercado Pago', bank_transfer: 'Pix', pix: 'Pix' };
+    const como = (metodos[String(l.metodo)] || String(l.metodo || 'Mercado Pago')) +
+        (Number(l.parcelas) > 1 ? ' em ' + l.parcelas + 'x' : '');
+    const texto = [
+        l.nome + ' deu ' + nomePresente + ' (R$ ' + l.valor + ', ' + como + ').',
+        l.recado ? 'Recado: "' + l.recado + '"' : '',
+        l.contato ? 'Contato: ' + l.contato : '',
+    ].filter(Boolean).join('\n');
+    avisarNoivos_('Presente recebido: ' + nomePresente + ', de ' + l.nome, texto);
+}
+
+// ---------------------------------------------------------------- área dos noivos
+
+/** Lista dos cartões de agradecimento, e os alertas no topo (task 22 §8). */
+function listarRecebidos_() {
+    const nomes = {};
+    lerAba_(ABAS.PRESENTES).forEach(function (p) { nomes[String(p.id).trim()] = String(p.nome); });
+    return lerAba_(ABAS.PAGAMENTOS)
+        .filter(function (l) { return String(l.status) === 'confirmado' || String(l.alerta || '') !== '' || String(l.status) === 'estornado'; })
+        .map(function (l) {
+            return {
+                presente: nomes[String(l.presente_id)] || String(l.presente_id),
+                nome: String(l.nome),
+                contato: String(l.contato || ''),
+                recado: String(l.recado || ''),
+                valor: Number(l.valor) || 0,
+                status: String(l.status),
+                canal: String(l.canal || ''),
+                metodo: String(l.metodo || ''),
+                parcelas: Number(l.parcelas) || null,
+                quando: l.confirmado_em ? new Date(l.confirmado_em).toISOString() : (l.criado_em ? new Date(l.criado_em).toISOString() : ''),
+                alerta: String(l.alerta || ''),
+            };
+        })
+        .sort(function (a, b) { return String(b.quando).localeCompare(String(a.quando)); });
+}
+
+// ---------------------------------------------------------------- operação (editor)
+
+/**
+ * Rode UMA VEZ depois de colar esta versão. Acrescenta colunas e chaves da Config que
+ * faltam, gera os segredos e IMPRIME a URL do webhook para colar no painel (§4.8) e a
+ * chave do modo teste.
+ */
+function configurarMercadoPago() {
+    CacheService.getScriptCache().remove('esquema_22');
+    garantirEsquema_();
+
+    const aba = aba_(ABAS.CONFIG);
+    const existentes = lerAba_(ABAS.CONFIG).map(function (l) { return String(l.chave); });
+    CONFIG_PADRAO.forEach(function (par) {
+        if (existentes.indexOf(par[0]) === -1) aba.appendRow(par);
+    });
+    CacheService.getScriptCache().remove('config');
+
+    const cfg = config_();
+    const url = String(cfg.backend_url || BACKEND_URL_PADRAO) + '?acao=mp_webhook&chave=' + segredoWebhook_();
+    const msg = [
+        'Webhook (colar no painel do Mercado Pago, evento Pagamentos):',
+        url,
+        '',
+        'Modo teste: pagamento_modo = teste na Config, e abrir o site com',
+        String(cfg.site_url || '').replace(/\/+$/, '') + '/presentes/?teste=' + chaveTeste_(),
+        '',
+        'pagamento_modo atual: ' + modoPagamento_(cfg) + ' · token: ' + (mpToken_() ? 'gravado' : 'FALTA (definirTokenMercadoPago)'),
+    ].join('\n');
+    Logger.log(msg);
+    log_('info', 'configurarMercadoPago', 'ok');
+    return msg;
+}
+
+/**
+ * Grava o Access Token. No editor não dá para passar argumento pelo botão Executar: crie
+ * `function tmp() { definirTokenMercadoPago('APP_USR-…', 'teste'); }`, rode, e APAGUE a
+ * função (o token não pode ficar escrito no projeto).
+ */
+function definirTokenMercadoPago(token, ambiente) {
+    const t = String(token || '').trim();
+    if (!/^(APP_USR|TEST)-/.test(t)) throw new Error('Access Token inválido: deve começar com APP_USR- ou TEST-.');
+    const props = propsMp_();
+    props.setProperty('mp_access_token', t);
+    props.setProperty('mp_ambiente', ambiente === 'producao' ? 'producao' : 'teste');
+    log_('info', 'definirTokenMercadoPago', 'ambiente ' + (ambiente === 'producao' ? 'producao' : 'teste'));
+    return 'token gravado (' + (ambiente === 'producao' ? 'producao' : 'teste') + ')';
+}
+
+/** Primeiro teste depois de gravar o token. */
+function testeMercadoPago() {
+    const j = mpFetch_('get', '/v1/payment_methods');
+    const msg = 'ok: ' + (Array.isArray(j) ? j.length : '?') + ' meios de pagamento; ambiente ' +
+        (propsMp_().getProperty('mp_ambiente') || '?');
+    Logger.log(msg);
+    return msg;
+}
+
+/** Cria uma preferência de R$ 10 sem gravar linha, e imprime o que a API devolveu. */
+function testePreferencia() {
+    const cfg = config_();
+    const ref = Utilities.getUuid();
+    const corpo = corpoPreferencia_(ref, { id: 'teste', nome: 'Teste de preferência', imagem: '', valor: 10, nomeConvidado: 'Teste' },
+        new Date(Date.now() + 30 * 60000), cfg);
+    const j = mpFetch_('post', '/checkout/preferences', corpo, ref);
+    const conferir = {
+        init_point: j.init_point,
+        binary_mode: j.binary_mode,
+        expires: j.expires,
+        expiration_date_to: j.expiration_date_to,
+        date_of_expiration: j.date_of_expiration,
+        statement_descriptor: j.statement_descriptor,
+        excluded_payment_types: j.payment_methods && j.payment_methods.excluded_payment_types,
+        installments: j.payment_methods && j.payment_methods.installments,
+        back_urls: j.back_urls,
+        auto_return: j.auto_return,
+        notification_url: j.notification_url ? j.notification_url.replace(/chave=.*/, 'chave=***') : j.notification_url,
+    };
+    Logger.log(JSON.stringify(conferir, null, 2));
+    return conferir;
+}
+
+/** Suporte: força a conciliação de uma ref. */
+function conciliarAgora(ref) {
+    const r = conciliar_(String(ref));
+    Logger.log(JSON.stringify(r));
+    return r;
 }
 
 // ============================================================ e-mail

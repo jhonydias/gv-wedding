@@ -66,12 +66,24 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                     <button type="button" class="botao botao--primario" data-novo>
                         Adicionar presente
                     </button>
+                    <button type="button" class="botao botao--fantasma" data-ver-recebidos>
+                        Presentes recebidos
+                    </button>
                     <button type="button" class="botao botao--fantasma" data-recarregar>
                         Atualizar lista
                     </button>
                 </div>
                 <div class="mensagem" data-mensagem role="status" tabindex="-1" hidden></div>
                 <div data-lista aria-live="polite"></div>
+            </div>
+
+            <!-- Task 22 §8: a lista dos cartões de agradecimento -->
+            <div class="recebidos" data-recebidos hidden>
+                <div class="painel__topo">
+                    <button type="button" class="botao botao--fantasma" data-voltar-lista>Voltar para a lista</button>
+                </div>
+                <h2 class="recebidos__titulo" tabindex="-1" data-recebidos-titulo>Presentes recebidos</h2>
+                <div data-recebidos-lista aria-live="polite"></div>
             </div>
 
             <!-- Passo 3: formulário (criar e editar) -->
@@ -152,6 +164,9 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                             </div>
                             <label class="radio"><input type="checkbox" name="luademel" /> É para a lua de mel</label>
                             <label class="radio"><input type="checkbox" name="publicar" checked /> Mostrar no site</label>
+                            <label class="radio">
+                                <input type="checkbox" name="valor_livre" /> O convidado escolhe o valor (o valor acima vira o mínimo)
+                            </label>
                         </details>
                     </div>
 
@@ -383,6 +398,42 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
         border: 1px solid var(--borda);
         border-radius: 999px;
         font-size: var(--t-xs);
+    }
+
+    /* --- Recebidos (task 22) --- */
+    .recebidos__titulo {
+        font-size: var(--t-xl);
+        margin-block-end: var(--e-2);
+    }
+    .recebidos :global(.recebido) {
+        display: grid;
+        gap: 0.25rem;
+        padding: var(--e-2);
+        background: var(--bg-alt);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio-produto);
+    }
+    .recebidos :global(.itens) {
+        list-style: none;
+        margin: var(--e-2) 0 0;
+        padding: 0;
+        display: grid;
+        gap: var(--e-1);
+    }
+    .recebidos :global(.item__nome) {
+        font-weight: 600;
+    }
+    .recebidos :global(.item__info) {
+        font-size: var(--t-xs);
+        color: var(--texto-suave);
+    }
+    .recebidos :global(.recebido__recado) {
+        font-style: italic;
+    }
+    .recebidos :global(.recebido__alerta) {
+        font-size: var(--t-sm);
+        font-weight: 600;
+        color: var(--laranja-texto);
     }
 
     /* --- Editor --- */

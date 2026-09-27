@@ -38,6 +38,11 @@ jobs:
         env:
           PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
 
+      # Task 22: o Code.gs real contra planilha e Mercado Pago simulados. Backend que não
+      # passa aqui não sobe (o site depende do contrato dele).
+      - name: Testar backend
+        run: npm run test:backend
+
       # TS strict é gate, não sugestão.
       - name: Verificar tipos
         run: npm run check

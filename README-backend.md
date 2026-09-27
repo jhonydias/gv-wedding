@@ -107,7 +107,7 @@ Veja o resultado em **Execuções** (ícone de relógio) e na aba `Log`.
 
 > ⚠️ Sem "Qualquer pessoa" o front recebe **403**. É o erro nº 1 aqui.
 
-Confira com `SUA_URL/exec?acao=ping`: deve devolver `{"ok":true,"versao":"17.0",…}`.
+Confira com `SUA_URL/exec?acao=ping`: deve devolver `{"ok":true,"versao":"22.0",…}`.
 
 ### Publicar pelo clasp (o caminho normal depois da primeira vez)
 
@@ -293,9 +293,65 @@ Adicione linhas em `Presentes`. `id` é um slug estável (`jogo-de-jantar`) — 
 Pix e **aparece no extrato**, então **não use UUID**. `cotas = 1` para item único; vazio para
 ilimitado (vaquinhas). Depois, `npm run catalogo`.
 
-**Confirmar um pagamento:** o Pix é estático, ninguém avisa que o dinheiro caiu. Ao ver no
-extrato, mude o `status` da linha em `Pagamentos` de `pendente` para `confirmado`. O presente sai
-do ar em até 60 s (cache).
+**Confirmar um pagamento de Pix direto:** o Pix estático não avisa que o dinheiro caiu. Ao ver
+no extrato, mude o `status` da linha em `Pagamentos` de `pendente` para `confirmado`. O presente
+sai do ar em até 60 s (cache). Pagamento pelo Mercado Pago confirma sozinho (abaixo).
+
+### Mercado Pago (task 22)
+
+Cartão em até 12x, Pix e saldo, pelo **Checkout Pro**, com **confirmação automática**. Tudo
+desligado até `pagamento_modo` mudar na `Config`. Spec completa, inclusive a configuração da
+conta: `tasks/22/task_text.md`.
+
+**Como a confirmação chega.** Só a função `conciliar_()` muda o status de um pagamento, e só
+depois de consultar a API do Mercado Pago. Três caminhos pedem essa consulta: o webhook, a
+página `/presentes/obrigado/` (a cada 4 s enquanto o convidado olha) e o gatilho
+`varrerPagamentos` (a cada 10 min). Nenhum resultado depende do webhook chegar.
+
+**Ligar, na ordem:**
+
+1. Publicar esta versão do `Code.gs` (seção 4). Nada muda para os convidados: `pagamento_modo`
+   nasce `pix`.
+2. No editor, gravar o Access Token **de teste** com uma função temporária, rodar e **apagar a
+   função**:
+   ```js
+   function tmp() { definirTokenMercadoPago('APP_USR-…', 'teste'); }
+   ```
+3. Rodar **`testeMercadoPago()`**: deve imprimir "ok: N meios de pagamento".
+4. Rodar **`configurarMercadoPago()`**: cria as colunas e chaves novas e **imprime a URL do
+   webhook** e o link do modo teste.
+5. Conferir na aba `Config`: `site_url` = `https://giseleevictor.com.br` (é para onde o
+   Mercado Pago devolve o convidado) e `backend_url` = a URL `/exec` que o site usa.
+6. Rodar **`testePreferencia()`** e ler o log: `binary_mode: true`, `back_urls` no domínio certo,
+   `excluded_payment_types` com `ticket` e `atm`.
+7. Rodar **`instalarGatilhos()`** (agora instala também a varredura).
+8. Painel do Mercado Pago → a aplicação → **Webhooks**: colar a URL do passo 4, evento só
+   **Pagamentos**.
+9. `pagamento_modo` = **`teste`**. Só quem abre o site com o link `?teste=…` do passo 4 chega ao
+   checkout; o resto continua no Pix. Testar com o **comprador de teste** e os cartões de teste
+   (task 22 §9.2).
+10. Produção: `definirTokenMercadoPago('APP_USR-…', 'producao')`, dois pagamentos reais de R$ 5 e
+    estorno (task 22 §9.3), e então `pagamento_modo` = **`mercadopago`**.
+
+**Desligar sem deploy:** `pagamento_modo` = `pix`. Na próxima requisição o site volta ao Pix
+estático.
+
+| `pagamento_modo` | Botão "Presentear" |
+|---|---|
+| `pix` (padrão) | abre o Pix estático, como sempre |
+| `teste` | checkout só para quem veio pelo link `?teste=…`; o resto, Pix |
+| `mercadopago` | checkout para todos; Pix vira "Prefere Pix direto?" |
+
+**Estados em `Pagamentos`:** `pendente` (reserva de 30 min), `confirmado`, `recusado`,
+`expirado`, `estornado`, `cancelado`. A coluna `alerta` marca o que pede ação dos noivos:
+`divergente` (valor pago diferente: **não confirmado**), `excedente` (dado além do limite),
+`duplicado` (pagou duas vezes), `disputa`. Cada alerta também sai por e-mail com `[ATENÇÃO]`, e
+aparece em "Presentes recebidos" na área dos noivos.
+
+**Estorno:** pelo painel do Mercado Pago. A varredura percebe e devolve a cota ao site.
+
+**Testes:** `npm run test:backend` roda o `Code.gs` real contra planilha e Mercado Pago
+simulados (também no CI, antes do build).
 
 **Mesas:** preencha a coluna `mesa` em `Convidados` à mão.
 

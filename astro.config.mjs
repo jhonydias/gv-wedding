@@ -23,7 +23,9 @@ export default defineConfig({
             filter: (pagina) =>
                 !pagina.includes('/confirmar') &&
                 !pagina.includes('/historia') &&
-                !pagina.includes('/noivos'),
+                !pagina.includes('/noivos') &&
+                // Retorno do Mercado Pago (task 22): só faz sentido com uma ref na URL.
+                !pagina.includes('/presentes/obrigado'),
         }),
     ],
 });
