@@ -59,7 +59,7 @@ const COLUNAS = {
  * que a usa na carga do script.
  */
 const BACKEND_URL_PADRAO =
-    'https://script.google.com/macros/s/AKfycbw9jsSxeakkfiW36wjFstHXo7w7Cmq1yYdKjmDKAELD9z9rdC5MW4OryMEK_-V58r69YA/exec';
+    'https://script.google.com/macros/s/AKfycbxZBcsoztmV7OZeVOwaMcevRAmbSidh6IPXlugjLwpubqRoH14e3zoT3KNXQZNK2QnCxg/exec';
 
 /** Padrões da aba Config. `configurarPlanilha()` grava estes valores. */
 const CONFIG_PADRAO = [
@@ -71,10 +71,11 @@ const CONFIG_PADRAO = [
     // ⚠️ Só vale para planilha com a Config VAZIA: `configurarPlanilha()` não sobrescreve
     // ajuste existente. Numa planilha já semeada, editar a célula `site_url` à mão (task 23).
     ['site_url', 'https://giseleevictor.com.br'],
-    ['email_noivos', 'TODO@exemplo.com'],
-    ['whatsapp', 'TODO'],
+    // A conta dona do script: é ela que envia os e-mails e recebe o aviso de cada RSVP.
+    ['email_noivos', 'giseleevictorcasamento@gmail.com'],
     ['rsvp_ate', '2026-11-16T23:59:59-03:00'],
-    ['pix_chave', ''],
+    // Referência: o BR Code é gerado no build com PUBLIC_PIX_CHAVE, que tem de ser esta.
+    ['pix_chave', '312c7e14-437d-44fe-a588-9f4b26d32792'],
     // ⚠️ TRUE = nada é enviado de verdade. Só vire para FALSE com autorização dos noivos.
     ['modo_simulacao', 'TRUE'],
     ['lote_email_max', '80'],
@@ -456,7 +457,7 @@ function rsvp_(bruto) {
     if (prazoEncerrado_(cfg)) {
         return json_({
             ok: false,
-            msg: 'O prazo de confirmação encerrou em ' + prazoRsvp_(cfg) + '. Fale com a gente pelo WhatsApp.',
+            msg: 'O prazo de confirmação encerrou em ' + prazoRsvp_(cfg) + '.',
         });
     }
 

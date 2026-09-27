@@ -73,7 +73,6 @@ export function modalPresente(statusPronto: Promise<ModoPagamento>): void {
     const elValor = $('[data-pix-valor]');
     const elCodigo = $('[data-pix-codigo]');
     const elQr = $('[data-pix-qr]');
-    const elWhats = $<HTMLAnchorElement>('[data-pix-whatsapp]');
     const btnCopiar = $<HTMLButtonElement>('[data-copiar]');
     const btnFechar = $<HTMLButtonElement>('[data-fechar]');
     const aviso = $('[data-copiado]');
@@ -147,12 +146,11 @@ export function modalPresente(statusPronto: Promise<ModoPagamento>): void {
     document.querySelectorAll<HTMLElement>('[data-presente]').forEach((botao) => {
         botao.addEventListener('click', () => {
             origem = botao;
-            const { nome, valor, codigo, qr, whatsapp } = botao.dataset;
+            const { nome, valor, codigo, qr } = botao.dataset;
             if (elNome) elNome.textContent = nome ?? '';
             if (elValor) elValor.textContent = valor ?? '';
             if (elCodigo) elCodigo.textContent = codigo ?? '';
             if (elQr) elQr.innerHTML = qr ?? '';
-            if (elWhats && whatsapp) elWhats.href = whatsapp;
             if (aviso) aviso.textContent = '';
 
             const barra = window.innerWidth - document.documentElement.clientWidth;

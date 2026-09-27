@@ -61,10 +61,9 @@ o convidado escolhia, o pagamento falhava, e o presente sumia para todo mundo.
 | `evento_quando` | `2027-01-16T20:00:00-03:00`. Data e hora de **todos** os e-mails saem daqui |
 | `evento_local` · `evento_endereco` | já preenchidos |
 | `site_url` | URL pública do site |
-| `email_noivos` | quem recebe a notificação de cada RSVP |
-| `whatsapp` | contato mostrado em caso de erro |
+| `email_noivos` | `giseleevictorcasamento@gmail.com`, a conta dona do script: envia os e-mails e recebe a notificação de cada RSVP |
 | `rsvp_ate` | `2026-11-16T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
-| `pix_chave` | referência; o BR Code é gerado no build |
+| `pix_chave` | `312c7e14-437d-44fe-a588-9f4b26d32792` (VICTOR H S DE SANTANA, BELEM). Referência; o BR Code é gerado no build com `PUBLIC_PIX_CHAVE`, que tem de ser a mesma |
 | **`modo_simulacao`** | **`TRUE` = nada é enviado de verdade** |
 | `lote_email_max` | teto de e-mails por execução (padrão 80) |
 
@@ -379,10 +378,9 @@ A URL continua a mesma.
 
 - [x] ~~Apagar dados herdados~~ — feito, a planilha está limpa com as 5 abas
 - [ ] **Restringir o compartilhamento** da planilha
-- [ ] Preencher `email_noivos` e `whatsapp` na `Config`
+- [x] ~~Preencher `email_noivos` na `Config`~~ feito em 27/09/2026. Não há WhatsApp: o site não mostra contato
 - [ ] Rodar `semearPresentes()` e depois `npm run catalogo`
-- [ ] **Substituir a chave Pix de teste pela real** — o `.env` tem uma chave
-      `00000000-0000-4000-8000-000000000000`, que **não recebe dinheiro**
+- [x] ~~Substituir a chave Pix de teste pela real~~ `.env` e secret com a chave aleatória real
 - [ ] Cadastrar os presentes reais (curadoria dos noivos)
 - [ ] Criar o secret `PUBLIC_BACKEND_URL` no GitHub
 - [x] ~~Definir `rsvp_ate`~~: 16/11/2026, definido pelos noivos em 26/09/2026 (task 16)

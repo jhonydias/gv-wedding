@@ -50,9 +50,6 @@ const prazoTexto = prazoRsvpPorExtenso();
             {/* Sempre no HTML: o `rsvp.ts` mostra este bloco se o prazo passar sem novo build. */}
             <div class="encerrado" data-rsvp-encerrado hidden={!encerrado}>
                 <h2>O prazo de confirmação encerrou</h2>
-                <p class="texto-corpo">
-                    Se ainda quiser falar com a gente, chame no WhatsApp. A gente dá um jeito.
-                </p>
             </div>
             {!encerrado && <FormRsvp />}
         </div>

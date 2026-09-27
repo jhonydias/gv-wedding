@@ -49,10 +49,7 @@ const itens = configurado
                   margin: 4, // quiet zone de 4 módulos
                   color: { dark: '#48492A', light: '#F7F1EB' },
               });
-              const msg = encodeURIComponent(
-                  `Oi! Acabei de mandar o Pix do presente "${p.nome}". Parabéns aos dois!`,
-              );
-              return { ...p, codigo, qr, whatsapp: `https://wa.me/?text=${msg}` };
+              return { ...p, codigo, qr };
           }),
       )
     : [];
@@ -137,7 +134,6 @@ const itens = configurado
                                     data-valor={p.valorLivre ? `A partir de ${emReais(p.valor)}` : emReais(p.valor)}
                                     data-codigo={p.codigo}
                                     data-qr={p.qr}
-                                    data-whatsapp={p.whatsapp}
                                 >
                                     Presentear
                                 </button>
@@ -214,20 +210,6 @@ const itens = configurado
         Copiar código Pix
     </button>
     <p class="pix__copiado" data-copiado aria-live="polite"></p>
-
-    {/*
-        `href` real já no HTML: o JS só o especializa com o nome do presente. Sem href
-        o Lighthouse acusa `crawlable-anchors` — e, mais importante, é uma âncora que
-        não funciona se o script falhar.
-    */}
-    <p class="pix__whats">
-        Depois de pagar, se quiser, <a
-            data-pix-whatsapp
-            href="https://wa.me/"
-            target="_blank"
-            rel="noopener">avise a gente no WhatsApp</a
-        >.
-    </p>
     </div>
 </dialog>
 
@@ -593,11 +575,5 @@ const itens = configurado
     }
     .pix [hidden] {
         display: none !important;
-    }
-
-    .pix__whats {
-        margin-block-start: var(--e-2);
-        font-size: var(--t-xs);
-        color: var(--texto-suave);
     }
 </style>
