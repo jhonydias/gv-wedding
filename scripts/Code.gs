@@ -119,18 +119,15 @@ function aba_(nome) {
     return s;
 }
 
-/** Lê uma aba inteira como array de objetos, usando a primeira linha como cabeçalho. */
+/**
+ * Lê uma aba inteira como array de objetos, usando a primeira linha como cabeçalho.
+ *
+ * `_linha` é o número REAL da linha na planilha. Antes era contado depois de descartar as
+ * linhas vazias: com uma confirmação apagada à mão no meio de `Convidados`, o reenvio de
+ * outro convidado sobrescrevia o vizinho e a campanha marcava o e-mail na pessoa errada.
+ */
 function lerAba_(nome) {
-    const valores = aba_(nome).getDataRange().getValues();
-    if (valores.length < 2) return [];
-    const cab = valores[0].map(String);
-    return valores.slice(1)
-        .filter(function (l) { return l.some(function (c) { return c !== '' && c !== null; }); })
-        .map(function (linha, i) {
-            const o = { _linha: i + 2 };
-            cab.forEach(function (c, j) { o[c] = linha[j]; });
-            return o;
-        });
+    return lerTabela_(nome).linhas;
 }
 
 function config_() {
@@ -698,11 +695,7 @@ function admin_(d) {
 
 // ---------------------------------------------------------------- leitura
 
-/**
- * Lê `Presentes` guardando o número REAL da linha. O `lerAba_()` numera depois de filtrar
- * linhas vazias, então com uma linha em branco no meio o `_linha` dele aponta para o
- * vizinho. Para ler, tanto faz; para editar e apagar, seria mexer no presente errado.
- */
+/** Lê `Presentes` guardando o número REAL da linha, para editar e apagar o presente certo. */
 function lerPresentes_() {
     return lerTabela_(ABAS.PRESENTES);
 }

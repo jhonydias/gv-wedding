@@ -236,7 +236,7 @@ export function criarAmbiente({ presentes = [], pagamentos = [], fetchImagem, co
     vm.createContext(ctx);
     vm.runInContext(
         CODIGO + '\n;globalThis.__x = { doPost, doGet, COLUNAS, txidDe_, definirSenhaNoivos, definirTokenMercadoPago,' +
-            ' varrerPagamentos, conciliar_, configurarMercadoPago, testePreferencia };',
+            ' varrerPagamentos, conciliar_, configurarMercadoPago, testePreferencia, enviarCampanha, lerAba_ };',
         ctx,
     );
 
