@@ -5,7 +5,7 @@
  * responde uma página de confirmação. Com JS, interceptamos e viramos fetch.
  */
 
-const LIM = { nomeMin: 3, nomeMax: 80, restricao: 300, recado: 500 } as const;
+const LIM = { nomeMin: 3, nomeMax: 80, recado: 500 } as const;
 
 export interface Resposta {
     ok: boolean;
@@ -35,9 +35,6 @@ export function validarCampo(nome: string, valor: string, comparece: string | nu
             return null;
         case 'comparece':
             if (!comparece) return 'Escolha uma das opções.';
-            return null;
-        case 'restricao':
-            if (v.length > LIM.restricao) return `Use no máximo ${LIM.restricao} caracteres.`;
             return null;
         case 'recado':
             if (v.length > LIM.recado) return `Use no máximo ${LIM.recado} caracteres.`;
@@ -120,7 +117,7 @@ export function rsvp(): void {
     sincronizarAcompanhantes();
 
     // Validação no `blur`, nunca enquanto digita: erro na terceira letra do nome é ruído.
-    for (const campo of ['nome', 'contato', 'restricao', 'recado']) {
+    for (const campo of ['nome', 'contato', 'recado']) {
         const el = form.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${campo}"]`);
         el?.addEventListener('blur', () =>
             mostrarErro(form, campo, validarCampo(campo, el.value, comparece())),
@@ -159,7 +156,7 @@ export function rsvp(): void {
         // Revalida tudo e manda o foco para o primeiro erro. O botão NUNCA fica
         // desabilitado: botão inerte sem explicação é beco sem saída.
         let primeiroErro: string | null = null;
-        for (const campo of ['nome', 'contato', 'comparece', 'restricao', 'recado']) {
+        for (const campo of ['nome', 'contato', 'comparece', 'recado']) {
             const msg = validarCampo(campo, dados[campo] ?? '', comparece());
             mostrarErro(form, campo, msg);
             if (msg && !primeiroErro) primeiroErro = campo;
