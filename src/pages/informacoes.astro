@@ -72,7 +72,8 @@ const mapaLoja = buscaNoMapa(LOJA.nome, `${LOJA.logradouro}, ${LOJA.cidade} - ${
                 <p class="loja__nome">{LOJA.nome}</p>
                 <p class="loja__oferece">{LOJA.oferece}</p>
 
-                <p class="loja__apoio">Desconto para os convidados:</p>
+                {/* "Convidadas": a loja só veste mulheres, então o desconto não é para todos. */}
+                <p class="loja__apoio">Nossas convidadas têm desconto especial:</p>
                 <ul class="loja__descontos">
                     {LOJA.descontos.map((d) => (
                         <li>
