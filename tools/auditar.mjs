@@ -115,6 +115,26 @@ if (comTravessao.length) {
 }
 nota.push(`travessões no html: ${comTravessao.reduce((s, x) => s + x.n, 0)}`);
 
+// --- og:image precisa existir (task 16 §2.4) ---
+//
+// O nome do arquivo sai de `ogImagemArquivo()`, com a data do evento. Se a data mudar e
+// ninguém rodar `npm run og`, o HTML aponta para um PNG que não existe e o preview do
+// WhatsApp fica sem imagem. Melhor parar o deploy do que descobrir pelo grupo da família.
+const ogFaltando = new Set();
+for (const h of htmls) {
+    const m = fs.readFileSync(h, 'utf8').match(/<meta property="og:image" content="([^"]+)"/);
+    if (!m) continue;
+    const arquivo = path.basename(new URL(m[1]).pathname);
+    if (!fs.existsSync(path.join(DIST, arquivo))) ogFaltando.add(arquivo);
+}
+if (ogFaltando.size) {
+    falhas.push(
+        `og:image aponta para arquivo inexistente: ${[...ogFaltando].join(', ')}. ` +
+            'Rode `npm run og` e commite o PNG.',
+    );
+}
+nota.push(`og:image: ${ogFaltando.size ? 'FALTANDO' : 'presente'}`);
+
 // --- resultado ---
 console.log('Auditoria de orçamento\n' + nota.map((n) => `  ${n}`).join('\n'));
 

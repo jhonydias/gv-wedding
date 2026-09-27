@@ -43,13 +43,15 @@ const COLUNAS = {
 
 /** Padrões da aba Config. `configurarPlanilha()` grava estes valores. */
 const CONFIG_PADRAO = [
-    ['evento_quando', '2027-01-31T19:00:00-03:00'],
+    // Data, hora e prazo: texto com offset, igual ao `event.ts`. Na planilha, a célula tem
+    // de ficar como TEXTO; se o Sheets converter para data, o `new Date()` perde o offset.
+    ['evento_quando', '2027-01-16T20:00:00-03:00'],
     ['evento_local', 'Espaço FRA'],
     ['evento_endereco', 'R. Cônego Jerônimo Pimentel, 124 - Umarizal, Belém - PA, 66055-000'],
     ['site_url', 'https://jhonydias.github.io/gv-wedding'],
     ['email_noivos', 'TODO@exemplo.com'],
     ['whatsapp', 'TODO'],
-    ['rsvp_ate', ''],
+    ['rsvp_ate', '2026-11-16T23:59:59-03:00'],
     ['pix_chave', ''],
     // ⚠️ TRUE = nada é enviado de verdade. Só vire para FALSE com autorização dos noivos.
     ['modo_simulacao', 'TRUE'],
@@ -357,6 +359,16 @@ function rsvp_(bruto) {
     if (!contatoValido_(d.contato)) return json_({ ok: false, msg: 'Informe um e-mail ou celular válido.' });
     if (d.comparece !== 'sim' && d.comparece !== 'nao') {
         return json_({ ok: false, msg: 'Escolha se você vai ou não.' });
+    }
+
+    // Prazo (task 16 §3). É a camada que manda: o site estático pode ficar sem build depois
+    // do prazo, e um POST direto nem passa pelo site.
+    const cfg = config_();
+    if (prazoEncerrado_(cfg)) {
+        return json_({
+            ok: false,
+            msg: 'O prazo de confirmação encerrou em ' + prazoRsvp_(cfg) + '. Fale com a gente pelo WhatsApp.',
+        });
     }
 
     if (rateLimitado_(d.contato)) {
@@ -1048,7 +1060,7 @@ function moldura_(titulo, corpoHtml, protocolo) {
         '<div style="max-width:520px;margin:0 auto">',
         '<p style="font-size:28px;letter-spacing:.04em;margin:0 0 4px">GISELE <span style="color:#F0994A">&amp;</span> VICTOR</p>',
         '<p style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#626247;margin:0 0 28px">',
-        '31 de janeiro de 2027 · ' + cfg.evento_local + '</p>',
+        dataEvento_(cfg, true) + ' · ' + cfg.evento_local + '</p>',
         '<h1 style="font-size:22px;margin:0 0 12px">' + titulo + '</h1>',
         corpoHtml,
         linkSaida,
@@ -1084,6 +1096,9 @@ function rodarCampanhas() {
     const cfg = config_();
     const evento = new Date(cfg.evento_quando).getTime();
     const hoje = Date.now();
+    // O gatilho roda entre 9h e 10h; com o evento às 20h, a fração do dia fica entre 0,42 e
+    // 0,46 e arredonda para baixo. Evento a partir das 21h passaria de 0,5 e anteciparia
+    // cada e-mail em um dia (task 16 §4.3).
     const diasAte = Math.round((evento - hoje) / 86400000);
 
     const campanha = CAMPANHAS.filter(function (c) { return -c.dias === diasAte; })[0];
@@ -1151,7 +1166,7 @@ function corpoTexto_(chave, l, cfg) {
     const nome = String(l.nome).split(' ')[0];
     const base = {
         d30: 'Oi, ' + nome + '! Faltam 30 dias. ' + cfg.evento_local + ', ' + cfg.evento_endereco,
-        d7: 'Oi, ' + nome + '! É na próxima semana, dia 31 de janeiro às 19h.',
+        d7: 'Oi, ' + nome + '! É na próxima semana, dia ' + dataEvento_(cfg) + ', às ' + horaEvento_(cfg) + '.',
         d1: 'É amanhã, ' + nome + '! ' + cfg.evento_local + ', ' + cfg.evento_endereco,
         pos: 'Obrigado por estar com a gente, ' + nome + '!',
     };
@@ -1173,12 +1188,13 @@ function corpoHtml_(chave, l, cfg) {
                 '<p>Separamos tudo que você precisa: endereço, como chegar, traje e hospedagem.</p>' +
                 btn('Ver informações', info);
         case 'd7':
-            return '<p>Oi, ' + nome + '! É na próxima semana, <strong>31 de janeiro, às 19h</strong>.</p>' +
+            return '<p>Oi, ' + nome + '! É na próxima semana, <strong>' + dataEvento_(cfg) +
+                ', às ' + horaEvento_(cfg) + '</strong>.</p>' +
                 '<p>' + cfg.evento_local + '<br>' + cfg.evento_endereco + '</p>' +
                 btn('Como chegar', info);
         case 'd1':
             return '<p><strong>É amanhã, ' + nome + '!</strong></p>' +
-                '<p>' + cfg.evento_local + '<br>' + cfg.evento_endereco + '<br>Às 19h.</p>' +
+                '<p>' + cfg.evento_local + '<br>' + cfg.evento_endereco + '<br>Às ' + horaEvento_(cfg) + '.</p>' +
                 btn('Chamar um carro', info);
         case 'pos':
             return '<p>Obrigado por estar com a gente, ' + nome + '. Foi tudo mais bonito com você lá.</p>' +
@@ -1212,6 +1228,55 @@ function descadastrar_(token) {
 function json_(obj) {
     return ContentService.createTextOutput(JSON.stringify(obj))
         .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------------------------------------------------------------- datas (task 16)
+//
+// Nenhum texto enviado pode ter data ou hora digitada: tudo sai de `evento_quando` e
+// `rsvp_ate` da Config. Mudou a data, muda a célula, e os e-mails acompanham.
+//
+// Array de meses porque `Utilities.formatDate` segue o locale do script, e 'MMMM' pode
+// sair "January". O fuso vai explícito, e não o do projeto.
+
+const FUSO_ = 'America/Belem';
+const MESES_ = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+    'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+
+function partesEmBelem_(iso) {
+    const d = new Date(iso);
+    const f = function (p) { return Utilities.formatDate(d, FUSO_, p); };
+    return { dia: Number(f('d')), mes: MESES_[Number(f('M')) - 1], ano: f('yyyy'), hora: Number(f('H')) };
+}
+
+/** "16 de janeiro" ou, com `comAno`, "16 de janeiro de 2027". */
+function dataEvento_(cfg, comAno) {
+    const p = partesEmBelem_(cfg.evento_quando);
+    return p.dia + ' de ' + p.mes + (comAno ? ' de ' + p.ano : '');
+}
+
+/** "20h". */
+function horaEvento_(cfg) {
+    return partesEmBelem_(cfg.evento_quando).hora + 'h';
+}
+
+/** "16 de novembro". */
+function prazoRsvp_(cfg) {
+    const p = partesEmBelem_(cfg.rsvp_ate);
+    return p.dia + ' de ' + p.mes;
+}
+
+/**
+ * O prazo do RSVP passou? Sem prazo, não. Com prazo ilegível, também não, e fica no Log:
+ * recusar confirmação por erro de digitação na Config é pior do que aceitar uma a mais.
+ */
+function prazoEncerrado_(cfg) {
+    if (!cfg.rsvp_ate) return false;
+    const limite = new Date(cfg.rsvp_ate).getTime();
+    if (isNaN(limite)) {
+        log_('erro', 'rsvp_ate', 'valor ilegível na Config: ' + cfg.rsvp_ate);
+        return false;
+    }
+    return Date.now() > limite;
 }
 
 // ============================================================ dados de teste
@@ -1310,6 +1375,20 @@ function testeManual() {
 function testeLeitura() {
     Logger.log('catalogo: ' + JSON.stringify(catalogo_()).slice(0, 500));
     Logger.log('status: ' + JSON.stringify(statusPresentes_()).slice(0, 500));
+}
+
+/** Confere no Log os textos com data e hora (task 16). Não envia nada. */
+function testeDatas() {
+    const cfg = config_();
+    const falso = { nome: 'Teste da Silva', protocolo: 'TESTE' };
+    Logger.log('evento: ' + dataEvento_(cfg, true) + ', às ' + horaEvento_(cfg));
+    Logger.log('prazo: ' + (cfg.rsvp_ate ? prazoRsvp_(cfg) : '(sem prazo)') +
+        ' · encerrado: ' + prazoEncerrado_(cfg));
+    ['d7', 'd1'].forEach(function (c) {
+        Logger.log(c + ' texto: ' + corpoTexto_(c, falso, cfg));
+        Logger.log(c + ' html: ' + corpoHtml_(c, falso, cfg));
+    });
+    Logger.log('moldura: ' + moldura_('Título', '').slice(0, 600));
 }
 
 /** Simula uma campanha inteira. Com modo_simulacao=TRUE, nada é enviado. */

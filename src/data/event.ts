@@ -2,7 +2,7 @@
  * Fonte ÚNICA dos fatos do evento.
  *
  * Nenhuma página pode ter data, hora ou endereço em texto solto. Se você está prestes a
- * digitar "31 de janeiro" num .astro, importe daqui em vez disso.
+ * digitar "16 de janeiro" num .astro, importe daqui em vez disso.
  */
 
 export interface Local {
@@ -46,7 +46,12 @@ export interface Evento {
     termino: string | null;
     /** O Espaço FRA é coberto? Respondido pelos noivos em 16/08/2026. */
     coberto: boolean | null;
-    /** TODO(factual): prazo de confirmação de presença (task 06). */
+    /**
+     * Último instante em que o RSVP é aceito, com offset. Definido pelos noivos em 26/09/2026:
+     * "até 16 de novembro", o dia inteiro em Belém. É aplicado em três lugares (task 16 §3):
+     * no build e no cliente (`/confirmar`) e no servidor (`rsvp_ate` na `Config`). Mudou aqui,
+     * muda lá.
+     */
     rsvpAte: string | null;
 }
 
@@ -54,7 +59,8 @@ export const EVENTO: Evento = {
     noiva: 'Gisele Colares',
     noivo: 'Victor Santana',
 
-    quando: '2027-01-31T19:00:00-03:00',
+    // Mudou em 26/09/2026: duas semanas antes e uma hora mais tarde (task 16).
+    quando: '2027-01-16T20:00:00-03:00',
 
     local: {
         nome: 'Espaço FRA',
@@ -70,7 +76,7 @@ export const EVENTO: Evento = {
 
     termino: null,
     coberto: true,
-    rsvpAte: null,
+    rsvpAte: '2026-11-16T23:59:59-03:00',
 };
 
 /** Fuso do evento. Toda formatação de data/hora precisa passar por aqui. */
@@ -80,7 +86,7 @@ export const FUSO = 'America/Belem' as const;
 export const QUANDO = new Date(EVENTO.quando);
 
 /**
- * Data por extenso, no fuso do evento — "domingo, 31 de janeiro de 2027".
+ * Data por extenso, no fuso do evento — "sábado, 16 de janeiro de 2027".
  * Sem `timeZone`, um convidado no Japão veria a data do dia seguinte.
  */
 export function dataPorExtenso(): string {
@@ -93,13 +99,49 @@ export function dataPorExtenso(): string {
     }).format(QUANDO);
 }
 
-/** Hora no fuso do evento — "19h". */
+/**
+ * "16 de janeiro de 2027", no fuso do evento. Para títulos, onde o dia da semana sobra.
+ *
+ * O `timeZone` aqui é crítico: 20h em Belém são 23h UTC, e o build roda em UTC. Sem ele,
+ * qualquer ajuste de hora para depois das 21h faria o build escrever o dia seguinte.
+ */
+export function dataSemDiaDaSemana(): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: FUSO,
+    }).format(QUANDO);
+}
+
+/** Prazo do RSVP por extenso, "16 de novembro", ou `null` se não há prazo. */
+export function prazoRsvpPorExtenso(): string | null {
+    if (!EVENTO.rsvpAte) return null;
+    return new Intl.DateTimeFormat('pt-BR', {
+        day: 'numeric',
+        month: 'long',
+        timeZone: FUSO,
+    }).format(new Date(EVENTO.rsvpAte));
+}
+
+/** Hora no fuso do evento — "20h". */
 export function horaFormatada(): string {
     const h = new Intl.DateTimeFormat('pt-BR', {
         hour: 'numeric',
         timeZone: FUSO,
     }).format(QUANDO);
     return `${h.replace(/\D/g, '')}h`;
+}
+
+/**
+ * Nome do arquivo da og:image em `public/`, com a data do evento: "og-2027-01-16.png".
+ *
+ * A data no nome é o que invalida o cache do preview no WhatsApp quando o casamento muda de
+ * dia (task 16 §2.4). Gerado por `tools/og.mjs`. Os dez primeiros caracteres do literal já
+ * são a data em Belém, porque o literal carrega o offset do evento.
+ */
+export function ogImagemArquivo(): string {
+    return `og-${EVENTO.quando.slice(0, 10)}.png`;
 }
 
 /** Valor pronto para o atributo `datetime` de um <time>. */

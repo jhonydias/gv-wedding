@@ -1,14 +1,25 @@
 ---
 import Base from '../layouts/Base.astro';
 import FormRsvp from '../components/FormRsvp.astro';
-import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
+import {
+    EVENTO,
+    dataPorExtenso,
+    horaFormatada,
+    prazoRsvpPorExtenso,
+    DATETIME_ATTR,
+} from '../data/event';
 
 /**
- * Prazo de confirmação. Comparado no BUILD e também no cliente — o site é estático
- * e pode ficar semanas sem novo build, então só a checagem de build não basta.
+ * Prazo de confirmação, aplicado em três camadas (task 16 §3):
+ *
+ * 1. aqui, no BUILD: passado o prazo, o formulário nem é renderizado;
+ * 2. no CLIENTE (`rsvp.ts`, lendo `data-rsvp-ate`): o site é estático e pode ficar semanas
+ *    sem build depois do prazo, então só a checagem de build deixaria o formulário aberto;
+ * 3. no SERVIDOR (`rsvp_` no `Code.gs`, lendo `rsvp_ate` da `Config`), que é quem manda.
  */
 const prazo = EVENTO.rsvpAte ? new Date(EVENTO.rsvpAte) : null;
 const encerrado = prazo !== null && Date.now() > prazo.getTime();
+const prazoTexto = prazoRsvpPorExtenso();
 ---
 
 <Base
@@ -24,24 +35,26 @@ const encerrado = prazo !== null && Date.now() > prazo.getTime();
                 <time datetime={DATETIME_ATTR}>{dataPorExtenso()}, às {horaFormatada()}</time>
                 · {EVENTO.local.nome}
             </p>
+            {
+                prazoTexto && (
+                    <p class="cabeca__prazo" data-rsvp-prazo hidden={encerrado}>
+                        Confirme até <time datetime={EVENTO.rsvpAte}>{prazoTexto}</time>.
+                    </p>
+                )
+            }
         </div>
     </header>
 
     <section class="secao">
-        <div class="wrap">
-            {
-                encerrado ? (
-                    <div class="encerrado">
-                        <h2>O prazo de confirmação encerrou</h2>
-                        <p class="texto-corpo">
-                            Se ainda quiser falar com a gente, chame no WhatsApp. A gente dá um
-                            jeito.
-                        </p>
-                    </div>
-                ) : (
-                    <FormRsvp />
-                )
-            }
+        <div class="wrap" data-rsvp-ate={EVENTO.rsvpAte ?? undefined}>
+            {/* Sempre no HTML: o `rsvp.ts` mostra este bloco se o prazo passar sem novo build. */}
+            <div class="encerrado" data-rsvp-encerrado hidden={!encerrado}>
+                <h2>O prazo de confirmação encerrou</h2>
+                <p class="texto-corpo">
+                    Se ainda quiser falar com a gente, chame no WhatsApp. A gente dá um jeito.
+                </p>
+            </div>
+            {!encerrado && <FormRsvp />}
         </div>
     </section>
 </Base>
@@ -58,6 +71,11 @@ const encerrado = prazo !== null && Date.now() > prazo.getTime();
         font-size: var(--t-sm);
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        color: var(--texto-suave);
+    }
+    .cabeca__prazo {
+        margin-block-start: var(--e-1);
+        font-size: var(--t-sm);
         color: var(--texto-suave);
     }
     .encerrado {

@@ -4,7 +4,7 @@ import Hero from '../components/Hero.astro';
 import Contagem from '../components/Contagem.astro';
 import Convite from '../components/Convite.astro';
 import Atalhos from '../components/Atalhos.astro';
-import { EVENTO } from '../data/event';
+import { EVENTO, dataSemDiaDaSemana } from '../data/event';
 
 /**
  * Dados estruturados do evento. É o que faz o Google oferecer "adicionar à agenda".
@@ -32,7 +32,7 @@ const dadosEvento = {
 };
 ---
 
-<Base titulo="Gisele & Victor · 31 de janeiro de 2027" atual="/" heroEscuro>
+<Base titulo={`Gisele & Victor · ${dataSemDiaDaSemana()}`} atual="/" heroEscuro>
     <Hero />
     <Contagem />
     <Convite />

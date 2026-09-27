@@ -32,7 +32,7 @@ import '../styles/motion.css';
 
 import Nav from '../components/Nav.astro';
 import Rodape from '../components/Rodape.astro';
-import { EVENTO, dataPorExtenso } from '../data/event';
+import { EVENTO, dataPorExtenso, ogImagemArquivo } from '../data/event';
 import { rota } from '../lib/url';
 
 interface Props {
@@ -57,7 +57,7 @@ const descricaoPadrao =
     `no ${EVENTO.local.nome}, em ${EVENTO.local.cidade}. Confirme sua presença.`;
 
 const canonica = new URL(Astro.url.pathname, Astro.site);
-const ogImagem = new URL(rota('/og-image.png'), Astro.site);
+const ogImagem = new URL(rota(`/${ogImagemArquivo()}`), Astro.site);
 ---
 
 <!doctype html>

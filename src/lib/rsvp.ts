@@ -47,6 +47,29 @@ export function validarCampo(nome: string, valor: string, comparece: string | nu
     }
 }
 
+/**
+ * O prazo passou? Lido do `data-rsvp-ate` que a `/confirmar` põe no HTML (task 16 §3).
+ *
+ * É a segunda das três camadas: o build já não renderiza o formulário depois do prazo, mas
+ * o site pode ficar semanas sem build. Sem atributo, ou com data inválida, não fecha nada:
+ * quem decide de verdade é o servidor.
+ */
+export function prazoEncerrado(agora: number = Date.now()): boolean {
+    const bruto = document.querySelector<HTMLElement>('[data-rsvp-ate]')?.dataset.rsvpAte;
+    if (!bruto) return false;
+    const prazo = new Date(bruto).getTime();
+    return Number.isFinite(prazo) && agora > prazo;
+}
+
+/** Troca o formulário pelo aviso de prazo encerrado, o mesmo bloco que o build usaria. */
+function encerrar(form: HTMLFormElement): void {
+    form.hidden = true;
+    const aviso = document.querySelector<HTMLElement>('[data-rsvp-encerrado]');
+    const prazo = document.querySelector<HTMLElement>('[data-rsvp-prazo]');
+    if (prazo) prazo.hidden = true;
+    if (aviso) aviso.hidden = false;
+}
+
 function mostrarErro(form: HTMLFormElement, campo: string, msg: string | null): void {
     const el = form.querySelector<HTMLElement>(`[name="${campo}"]`);
     const alvo = el ?? form.querySelector<HTMLElement>(`[data-grupo="${campo}"]`);
@@ -68,6 +91,11 @@ function mostrarErro(form: HTMLFormElement, campo: string, msg: string | null): 
 export function rsvp(): void {
     const form = document.querySelector<HTMLFormElement>('[data-rsvp]');
     if (!form) return;
+
+    if (prazoEncerrado()) {
+        encerrar(form);
+        return;
+    }
 
     const endpoint = form.getAttribute('action') ?? '';
     const botao = form.querySelector<HTMLButtonElement>('[data-enviar]');
@@ -118,6 +146,13 @@ export function rsvp(): void {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (painelErro) painelErro.hidden = true;
+
+        // A página pode ter ficado aberta desde antes do prazo. O servidor recusaria de
+        // qualquer forma; aqui a resposta vem na hora, sem a volta ao Apps Script.
+        if (prazoEncerrado()) {
+            encerrar(form);
+            return;
+        }
 
         const dados = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
 

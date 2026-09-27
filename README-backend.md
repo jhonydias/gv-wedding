@@ -58,16 +58,28 @@ o convidado escolhia, o pagamento falhava, e o presente sumia para todo mundo.
 
 | Chave | O que é |
 |---|---|
-| `evento_quando` | `2027-01-31T19:00:00-03:00` — já preenchido |
+| `evento_quando` | `2027-01-16T20:00:00-03:00`. Data e hora de **todos** os e-mails saem daqui |
 | `evento_local` · `evento_endereco` | já preenchidos |
 | `site_url` | URL pública do site |
 | `email_noivos` | quem recebe a notificação de cada RSVP |
 | `whatsapp` | contato mostrado em caso de erro |
-| `rsvp_ate` | prazo de confirmação (opcional) |
+| `rsvp_ate` | `2026-11-16T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
 | `pix_chave` | referência; o BR Code é gerado no build |
 | **`modo_simulacao`** | **`TRUE` = nada é enviado de verdade** |
 | `segredo_token` | gerado automaticamente. **Não troque** — invalida os links de descadastro |
 | `lote_email_max` | teto de e-mails por execução (padrão 80) |
+
+**Datas são texto, com offset.** Formate as células de `evento_quando` e `rsvp_ate` como
+*Formatar → Número → Texto simples* antes de colar o valor. Se o Sheets converter para data,
+o offset de Belém se perde.
+
+**Mudou a data ou a hora do casamento?** É só a célula `evento_quando` (e o `event.ts` do
+site, que é outra fonte, ver task 16). Nenhum e-mail tem data digitada; não precisa de nova
+versão da implantação. A `Config` fica em cache por até 2 minutos.
+
+**O prazo do RSVP existe em dois lugares:** `rsvp_ate` aqui e `EVENTO.rsvpAte` no
+`event.ts`. O site usa o dele para mostrar o prazo e esconder o formulário; o servidor usa
+este para recusar. Mudou um, mude o outro.
 
 ---
 
@@ -80,6 +92,7 @@ No editor, rode nesta ordem:
 | `testeLeitura()` | catálogo e status saem certos |
 | `testeManual()` | grava um RSVP de teste na aba `Convidados` |
 | `testeCampanha()` | simula a campanha `d30` **sem enviar** |
+| `testeDatas()` | data, hora e prazo por extenso, e os textos do D-7 e D-1, no `Log`. Não envia nem grava |
 
 Veja o resultado em **Execuções** (ícone de relógio) e na aba `Log`.
 **Apague as linhas de teste** antes de publicar.
@@ -290,6 +303,8 @@ A URL continua a mesma.
       `00000000-0000-4000-8000-000000000000`, que **não recebe dinheiro**
 - [ ] Cadastrar os presentes reais (curadoria dos noivos)
 - [ ] Criar o secret `PUBLIC_BACKEND_URL` no GitHub
-- [ ] Definir `rsvp_ate`
+- [x] ~~Definir `rsvp_ate`~~: 16/11/2026, definido pelos noivos em 26/09/2026 (task 16)
+- [ ] Atualizar na planilha em uso `evento_quando` e `rsvp_ate` (o `configurarPlanilha()` não
+      sobrescreve uma `Config` já preenchida)
 - [ ] Rodar a campanha em simulação e conferir o `Log`
 - [ ] Autorização dos noivos antes de `modo_simulacao = FALSE`
