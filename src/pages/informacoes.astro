@@ -10,21 +10,11 @@ const { local } = EVENTO;
 
 const mapaLoja = buscaNoMapa(LOJA.nome, `${LOJA.logradouro}, ${LOJA.cidade} - ${LOJA.uf}`);
 
-/**
- * Rotas por origem. Estrutura copiada da referência, adaptada a Belém.
- * TODO(factual): confirmar as origens prováveis e os tempos com os noivos.
- */
-const ORIGENS = [
-    { de: 'Do aeroporto (Val-de-Cans)', obs: 'TODO: tempo estimado e referência de chegada' },
-    { de: 'De Nazaré, Batista Campos ou Reduto', obs: 'Bairros vizinhos ao Umarizal' },
-    { de: 'De Ananindeua ou Marituba', obs: 'TODO: tempo estimado' },
-    { de: 'Do centro ou da Cidade Velha', obs: 'TODO: tempo estimado' },
-] as const;
 ---
 
 <Base
     titulo="Informações · Gisele & Victor"
-    descricao="Local, como chegar, traje e hospedagem para o casamento de Gisele e Victor."
+    descricao="Local, como chegar e traje para o casamento de Gisele e Victor."
     atual="/informacoes"
 >
     <header class="cabeca inverso">
@@ -63,27 +53,6 @@ const ORIGENS = [
                 preenchido em `event.ts`, a linha aparece sozinha.
             */}
             {EVENTO.termino && <p class="local__quando">Até {EVENTO.termino}</p>}
-        </div>
-    </section>
-
-    <!-- Como chegar -->
-    <section class="secao" aria-labelledby="rotas-titulo">
-        <div class="wrap">
-            <h2 id="rotas-titulo" data-palavras>Como chegar</h2>
-            <p class="texto-corpo">
-                O espaço fica no próprio Umarizal, então boa parte dos convidados de Belém está a
-                poucos minutos.
-            </p>
-
-            <ol class="rotas">
-                {ORIGENS.map((o) => (
-                    <li>
-                        <h3>{o.de}</h3>
-                        <p>{o.obs}</p>
-                    </li>
-                ))}
-            </ol>
-
         </div>
     </section>
 
@@ -134,28 +103,6 @@ const ORIGENS = [
         </div>
     </section>
 
-    <!-- 5. Hospedagem -->
-    <section class="secao" aria-labelledby="hosp-titulo">
-        <div class="wrap">
-            <h2 id="hosp-titulo" data-palavras>Hospedagem</h2>
-            <p class="texto-corpo">
-                O Umarizal concentra boa parte da rede hoteleira de Belém, e é o bairro do
-                próprio espaço, o que facilita bastante. Por proximidade: Umarizal, depois
-                Nazaré, Reduto e Batista Campos.
-            </p>
-            <p class="pendencia">TODO: os noivos precisam indicar hotéis, e se há bloqueio de
-            quartos ou código de desconto. Não listar hotel específico sem confirmação.</p>
-        </div>
-    </section>
-
-    <!-- 6. Dúvidas -->
-    <section class="secao alt" aria-labelledby="duvidas-titulo">
-        <div class="wrap duvidas">
-            <h2 id="duvidas-titulo" data-palavras>Ficou alguma dúvida?</h2>
-            <p class="pendencia">TODO: definir o número de WhatsApp para contato. Provavelmente
-            não o dos noivos no dia do evento.</p>
-        </div>
-    </section>
 </Base>
 
 <style>
@@ -199,23 +146,6 @@ const ORIGENS = [
         font-size: var(--t-sm);
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--texto-suave);
-    }
-
-    .rotas {
-        margin-block-start: var(--e-3);
-        padding-inline-start: 1.2em;
-        display: grid;
-        gap: var(--e-2);
-    }
-    .rotas h3 {
-        font-size: var(--t-base);
-        text-transform: none;
-        font-family: var(--fonte-texto);
-        font-weight: 600;
-    }
-    .rotas p {
-        font-size: var(--t-sm);
         color: var(--texto-suave);
     }
 
@@ -305,18 +235,5 @@ const ORIGENS = [
         margin-block-start: var(--e-1);
         font-size: var(--t-sm);
         color: var(--texto-suave);
-    }
-
-    .pendencia {
-        margin-block-start: var(--e-2);
-        padding: var(--e-2);
-        border-inline-start: 3px solid var(--laranja-texto);
-        background: color-mix(in srgb, var(--laranja) 10%, transparent);
-        font-size: var(--t-sm);
-        max-inline-size: var(--largura-texto);
-    }
-
-    .duvidas {
-        max-inline-size: var(--largura-texto);
     }
 </style>
