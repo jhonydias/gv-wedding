@@ -2,9 +2,12 @@
 import Base from '../layouts/Base.astro';
 import ComoChegar from '../components/ComoChegar.astro';
 import { EVENTO, dataPorExtenso, horaFormatada, DATETIME_ATTR } from '../data/event';
-import { googleMaps } from '../lib/mapas';
+import { googleMaps, buscaNoMapa } from '../lib/mapas';
+import { TRAJE, LOJA, instagramDe } from '../data/traje';
 
 const { local } = EVENTO;
+
+const mapaLoja = buscaNoMapa(LOJA.nome, `${LOJA.logradouro}, ${LOJA.cidade} - ${LOJA.uf}`);
 
 /**
  * Rotas por origem. Estrutura copiada da referência, adaptada a Belém.
@@ -15,15 +18,6 @@ const ORIGENS = [
     { de: 'De Nazaré, Batista Campos ou Reduto', obs: 'Bairros vizinhos ao Umarizal' },
     { de: 'De Ananindeua ou Marituba', obs: 'TODO: tempo estimado' },
     { de: 'Do centro ou da Cidade Velha', obs: 'TODO: tempo estimado' },
-] as const;
-
-/** Paleta sugerida para o traje, vinda dos tokens da marca. */
-const PALETA = [
-    { nome: 'Oliva', varCss: 'var(--oliva)' },
-    { nome: 'Sage', varCss: 'var(--sage)' },
-    { nome: 'Areia', varCss: 'var(--areia)' },
-    { nome: 'Terracota', varCss: 'var(--laranja)' },
-    { nome: 'Lilás', varCss: 'var(--lilas)' },
 ] as const;
 ---
 
@@ -137,27 +131,59 @@ const PALETA = [
     </section>
 
     <!-- Traje -->
-    <section class="secao alt" aria-labelledby="traje-titulo">
+    {/*
+        Task 20: o `id` dá o link /informacoes#traje, para mandar no grupo quando alguém
+        perguntar o traje. Seção com âncora, e não abas: abas esconderiam conteúdo com JS e
+        empurrariam o "Chamar um carro" para fora da primeira tela.
+    */}
+    <section id="traje" class="secao alt traje" aria-labelledby="traje-titulo">
         <div class="wrap">
             <h2 id="traje-titulo" data-palavras>Traje</h2>
+            <p class="traje__codigo">{TRAJE.codigo}</p>
+            {/*
+                "Nada de lã ou forro pesado" saiu: com passeio completo o convidado vai de
+                terno, e terno tem forro. O conselho de tecido fica, sem proibir o traje.
+            */}
             <p class="texto-corpo">
-                Belém em janeiro, à noite, é quente e úmido, por volta de 30 °C, com umidade
-                alta. Aposte em tecidos leves: linho, algodão, seda. Nada de lã ou forro pesado.
+                Belém em janeiro, à noite, é quente e úmido, por volta de 30 °C. Tecidos leves
+                fazem diferença: linho, algodão, seda.
             </p>
-            <p class="pendencia">TODO: definir o traje (esporte fino? passeio completo?) e as
-            recomendações de "ele" e "ela" com os noivos. Sobre salto, confirmar antes o piso do
-            espaço.</p>
+            <p class="pendencia">TODO: sobre salto, confirmar antes o piso do espaço.</p>
 
-            <h3 class="sub">Paleta sugerida</h3>
-            <p class="texto-corpo">Como inspiração, não como regra:</p>
-            <ul class="paleta">
-                {PALETA.map((c) => (
-                    <li class="paleta__item">
-                        <span class="paleta__chip" style={`background:${c.varCss}`} aria-hidden="true"></span>
-                        <span>{c.nome}</span>
-                    </li>
-                ))}
-            </ul>
+            <h3 class="sub">Sugestão de loja</h3>
+            <div class="loja">
+                <p class="loja__nome">{LOJA.nome}</p>
+                <p class="loja__oferece">{LOJA.oferece}</p>
+
+                <p class="loja__apoio">Desconto para os convidados:</p>
+                <ul class="loja__descontos">
+                    {LOJA.descontos.map((d) => (
+                        <li>
+                            <span class="loja__pct">{d.percentual}%</span>
+                            <span class="loja__cond">{d.condicao}</span>
+                        </li>
+                    ))}
+                </ul>
+
+                <address class="loja__endereco">
+                    {LOJA.logradouro}<br />
+                    {LOJA.cidade}/{LOJA.uf}
+                </address>
+
+                <p class="loja__links">
+                    <a
+                        href={instagramDe(LOJA.instagram)}
+                        rel="noopener"
+                        aria-label={`Instagram da ${LOJA.nome}`}>Instagram</a
+                    >
+                    <span aria-hidden="true">·</span>
+                    <a href={mapaLoja} rel="noopener" aria-label={`Ver no mapa o endereço da ${LOJA.nome}`}
+                        >Ver no mapa</a
+                    >
+                </p>
+
+                <p class="loja__contato">Mais informações, entre em contato com a loja.</p>
+            </div>
         </div>
     </section>
 
@@ -263,27 +289,91 @@ const PALETA = [
         color: var(--texto-suave);
     }
 
-    .paleta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--e-2);
-        margin-block-start: var(--e-2);
-        list-style: none;
-        padding: 0;
+    /* A nav é fixa e tem ~140px no desktop; a seção já tem --e-6 de respiro antes do título.
+       Com --e-4 o título parava 4px embaixo da nav (medido); --e-6 deixa ~50px de folga. */
+    .traje {
+        scroll-margin-block-start: var(--e-6);
     }
-    .paleta__item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.4em;
-        font-size: var(--t-xs);
+    /* O que o convidado veio buscar: a primeira coisa lida depois do título. */
+    .traje__codigo {
+        margin-block-end: var(--e-2);
+        font-family: var(--fonte-display);
+        font-size: var(--t-xl);
+        line-height: 1;
+        text-transform: uppercase;
     }
-    /* Cor nunca é a única forma de comunicar: cada chip tem o nome ao lado. */
-    .paleta__chip {
-        inline-size: 3.5rem;
-        block-size: 3.5rem;
+
+    /* Cartão creme sobre a faixa areia. O --bg acompanha, para quem herdar a cor de fundo. */
+    .loja {
+        --bg: var(--creme);
+        max-inline-size: var(--largura-texto);
+        padding: var(--e-3);
+        background: var(--bg);
         border: 1px solid var(--borda);
         border-radius: var(--raio);
+    }
+    .loja__nome {
+        font-family: var(--fonte-display);
+        font-size: var(--t-lg);
+        text-transform: uppercase;
+    }
+    .loja__oferece,
+    .loja__apoio {
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
+    }
+    .loja__apoio {
+        margin-block-start: var(--e-2);
+    }
+    .loja__descontos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--e-3);
+        margin-block-start: var(--e-1);
+        padding: 0;
+        list-style: none;
+    }
+    .loja__descontos li {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4em;
+    }
+    /* Texto em --texto (oliva), nunca --laranja: laranja sobre creme dá 2:1. */
+    .loja__pct {
+        font-family: var(--fonte-display);
+        font-size: var(--t-xl);
+        line-height: 1;
+    }
+    .loja__cond {
+        font-size: var(--t-sm);
+    }
+    .loja__endereco {
+        margin-block-start: var(--e-2);
+        font-style: normal;
+        line-height: 1.7;
+    }
+    .loja__links {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5em;
+        margin-block-start: var(--e-1);
+        margin-inline-start: -0.5rem;
+        font-size: var(--t-sm);
+    }
+    /* Mesmo alvo de toque dos links de mapa do ComoChegar. */
+    .loja__links a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-block-size: 44px;
+        min-inline-size: 44px;
+        padding-inline: 0.5rem;
+    }
+    .loja__contato {
+        margin-block-start: var(--e-1);
+        font-size: var(--t-sm);
+        color: var(--texto-suave);
     }
 
     .pendencia {

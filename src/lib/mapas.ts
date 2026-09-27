@@ -44,3 +44,15 @@ export const waze = temCoordenadas
 export const appleMaps = temCoordenadas
     ? `https://maps.apple.com/?daddr=${lat},${lng}`
     : `https://maps.apple.com/?daddr=${encodeURIComponent(destinoTexto)}`;
+
+/**
+ * Busca no Google Maps por nome + endereço. Task 20, para a loja sugerida no traje.
+ *
+ * Busca, e não rota: o convidado vai à loja num dia qualquer, de qualquer lugar. Com o nome
+ * junto, o Maps cai na ficha do estabelecimento em vez de só um pino na rua.
+ */
+export function buscaNoMapa(nome: string, endereco: string): string {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        `${nome}, ${endereco}`,
+    )}`;
+}
