@@ -42,7 +42,7 @@ O front nunca acessa a planilha — só o Apps Script, que expõe apenas o catá
 |---|---|
 | `Presentes` | catálogo. `ativo` controla o que aparece; `cotas` quantas pessoas podem dar |
 | `Pagamentos` | um registro por reserva. **Só `confirmado` consome cota** |
-| `Convidados` | RSVPs, mesa, e-mails já enviados, descadastro |
+| `Convidados` | RSVPs, mesa, e-mails já enviados. As colunas `acompanhantes`, `restricao` e `descadastrado` ficam na planilha, mas não são mais usadas: o site não pede acompanhantes nem restrição, e não há descadastro |
 | `Config` | chaves que mudam sem republicar o script |
 | `Log` | rastro de tudo. Sem isso, depurar Apps Script é adivinhação |
 
@@ -66,7 +66,6 @@ o convidado escolhia, o pagamento falhava, e o presente sumia para todo mundo.
 | `rsvp_ate` | `2026-11-16T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
 | `pix_chave` | referência; o BR Code é gerado no build |
 | **`modo_simulacao`** | **`TRUE` = nada é enviado de verdade** |
-| `segredo_token` | gerado automaticamente. **Não troque** — invalida os links de descadastro |
 | `lote_email_max` | teto de e-mails por execução (padrão 80) |
 
 **Datas são texto, com offset.** Formate as células de `evento_quando` e `rsvp_ate` como
@@ -150,8 +149,8 @@ Rode **`instalarGatilhos()`** uma vez. Cria um gatilho diário às 9h que dispar
 
 | Chave | Quando | Conteúdo |
 |---|---|---|
-| `confirmacao` | na hora do RSVP | protocolo e resumo |
-| `d30` | 30 dias antes | local, mapa, traje, hospedagem |
+| `confirmacao` | na hora do RSVP | "Sua confirmação: GV-0001" e link das informações |
+| `d30` | 30 dias antes | local, como chegar e traje |
 | `d7` | 7 dias antes | horário e endereço |
 | `d1` | véspera | "é amanhã" e link do Uber |
 | `pos` | 3 dias depois | agradecimento e link do pré-wedding |
@@ -161,7 +160,8 @@ Rode **`instalarGatilhos()`** uma vez. Cria um gatilho diário às 9h que dispar
 - **Só para quem marcou `sim`.** Quem avisou que não vai não recebe lembrete.
 - **Nunca envia duas vezes.** A chave entra em `Convidados.emails_enviados` **depois** do envio,
   e todo disparo confere a lista antes. Reexecutar o gatilho não reenvia.
-- **`descadastrado = TRUE`** não recebe nada além da confirmação.
+- **Sem descadastro.** É um casamento, não uma empresa: quem confirmou recebe todos os avisos, e
+  quem não quer receber não confirma. Os e-mails não têm link "não quero mais receber".
 - **Cota do Gmail: 100 destinatários/dia** em conta gratuita. Com ~150 convidados **uma leva não
   cabe**: o código verifica `getRemainingDailyQuota()` antes de cada envio, para com folga de 5 e
   **retoma no dia seguinte** de onde parou.

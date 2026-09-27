@@ -98,23 +98,13 @@ export function rsvp(): void {
     const botao = form.querySelector<HTMLButtonElement>('[data-enviar]');
     const painelOk = document.querySelector<HTMLElement>('[data-sucesso]');
     const painelErro = form.querySelector<HTMLElement>('[data-erro-geral]');
-    const acompanhantesBloco = form.querySelector<HTMLElement>('[data-acompanhantes]');
 
     const comparece = (): string | null =>
         form.querySelector<HTMLInputElement>('[name="comparece"]:checked')?.value ?? null;
 
-    // Acompanhantes só fazem sentido para quem vai.
-    const sincronizarAcompanhantes = (): void => {
-        if (!acompanhantesBloco) return;
-        acompanhantesBloco.hidden = comparece() !== 'sim';
-    };
     form.querySelectorAll('[name="comparece"]').forEach((r) => {
-        r.addEventListener('change', () => {
-            sincronizarAcompanhantes();
-            mostrarErro(form, 'comparece', null);
-        });
+        r.addEventListener('change', () => mostrarErro(form, 'comparece', null));
     });
-    sincronizarAcompanhantes();
 
     // Validação no `blur`, nunca enquanto digita: erro na terceira letra do nome é ruído.
     for (const campo of ['nome', 'contato', 'recado']) {
@@ -183,9 +173,10 @@ export function rsvp(): void {
             if (!resposta.ok) throw new Error(resposta.msg ?? 'Não foi possível registrar.');
 
             if (painelOk) {
-                const prot = painelOk.querySelector<HTMLElement>('[data-protocolo]');
-                // '···' é o mesmo espaço reservado do FormRsvp (task 11 §3.4).
-                if (prot) prot.textContent = resposta.protocolo ?? '···';
+                const codigo = painelOk.querySelector<HTMLElement>('[data-codigo]');
+                // '···' é o mesmo espaço reservado do FormRsvp (task 11 §3.4). O campo da
+                // resposta continua `protocolo`: é o nome da coluna na planilha.
+                if (codigo) codigo.textContent = resposta.protocolo ?? '···';
                 const tit = painelOk.querySelector<HTMLElement>('[data-sucesso-titulo]');
                 if (tit) {
                     tit.textContent =

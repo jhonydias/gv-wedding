@@ -32,6 +32,10 @@ const ABAS = {
 const COLUNAS = {
     Presentes: ['id', 'nome', 'valor', 'faixa', 'imagem', 'descricao', 'ativo', 'cotas', 'ordem'],
     Pagamentos: ['id', 'presente_id', 'nome', 'contato', 'valor', 'status', 'criado_em', 'confirmado_em'],
+    // `acompanhantes`, `restricao` e `descadastrado` não são mais usados (o site não pede
+    // acompanhantes nem restrição, e não há descadastro), mas FICAM: as linhas são gravadas
+    // por posição, e tirar uma coluna daqui desalinharia tudo numa planilha que já as tem.
+    // `protocolo` é o código que o convidado vê como "Sua confirmação: GV-0001".
     Convidados: [
         'protocolo', 'nome', 'contato', 'comparece', 'acompanhantes', 'total_pessoas',
         'restricao', 'recado', 'criado_em', 'atualizado_em', 'mesa',
@@ -55,7 +59,6 @@ const CONFIG_PADRAO = [
     ['pix_chave', ''],
     // ⚠️ TRUE = nada é enviado de verdade. Só vire para FALSE com autorização dos noivos.
     ['modo_simulacao', 'TRUE'],
-    ['segredo_token', ''],
     ['lote_email_max', '80'],
 ];
 
@@ -156,12 +159,6 @@ function configurarPlanilha() {
     const cfg = ss.getSheetByName(ABAS.CONFIG);
     if (cfg.getLastRow() <= 1) {
         CONFIG_PADRAO.forEach(function (par) { cfg.appendRow(par); });
-        // Segredo aleatório para os tokens de descadastro.
-        const seg = Utilities.getUuid() + Utilities.getUuid();
-        const linhas = cfg.getDataRange().getValues();
-        for (let i = 1; i < linhas.length; i++) {
-            if (linhas[i][0] === 'segredo_token') cfg.getRange(i + 1, 2).setValue(seg);
-        }
     }
 
     log_('info', 'configurarPlanilha', 'abas verificadas');
@@ -190,8 +187,6 @@ function doGet(e) {
                 return json_({ ok: true, presentes: catalogo_() });
             case 'status':
                 return json_({ ok: true, status: statusPresentes_() });
-            case 'descadastrar':
-                return descadastrar_(e.parameter.token);
             default:
                 return json_({ ok: false, msg: 'Ação desconhecida.' });
         }
@@ -344,12 +339,6 @@ function rsvp_(bruto) {
         nome: limpar_(bruto.nome, 80),
         contato: limpar_(bruto.contato, 120),
         comparece: limpar_(bruto.comparece, 5).toLowerCase(),
-        acompanhantes: String(bruto.acompanhantes || '')
-            .replace(/<[^>]*>/g, '')
-            .split('\n')
-            .map(function (s) { return s.trim(); })
-            .filter(Boolean)
-            .slice(0, 20),
         restricao: limpar_(bruto.restricao, 300),
         recado: limpar_(bruto.recado, 500),
     };
@@ -375,9 +364,9 @@ function rsvp_(bruto) {
         return json_({ ok: false, msg: 'Muitas tentativas seguidas. Tente de novo em alguns minutos.' });
     }
 
-    // total_pessoas é CALCULADO aqui. Se viesse do cliente, um payload forjado
-    // inflaria o buffet.
-    const total = d.comparece === 'sim' ? 1 + d.acompanhantes.length : 0;
+    // Sem acompanhantes: cada confirmação é uma pessoa. Calculado aqui, nunca vindo do
+    // cliente, e um `acompanhantes` num payload forjado é simplesmente ignorado.
+    const total = d.comparece === 'sim' ? 1 : 0;
 
     const aba = aba_(ABAS.CONVIDADOS);
     const linhas = lerAba_(ABAS.CONVIDADOS);
@@ -392,9 +381,9 @@ function rsvp_(bruto) {
         if (isNaN(quando) || Date.now() - quando > LIMITES.IDEMPOTENCIA_MS) break;
 
         aba.getRange(l._linha, 1, 1, COLUNAS.Convidados.length).setValues([[
-            l.protocolo, d.nome, d.contato, d.comparece, d.acompanhantes.join('\n'), total,
+            l.protocolo, d.nome, d.contato, d.comparece, '', total,
             d.restricao, d.recado, l.criado_em, agora, l.mesa || '',
-            l.emails_enviados || '', l.descadastrado || false,
+            l.emails_enviados || '', false,
         ]]);
         log_('info', 'rsvp:atualizado', l.protocolo);
         return json_({ ok: true, protocolo: String(l.protocolo), msg: 'Confirmação atualizada!' });
@@ -402,7 +391,7 @@ function rsvp_(bruto) {
 
     const protocolo = 'GV-' + String(aba.getLastRow()).padStart(4, '0');
     aba.appendRow([
-        protocolo, d.nome, d.contato, d.comparece, d.acompanhantes.join('\n'), total,
+        protocolo, d.nome, d.contato, d.comparece, '', total,
         d.restricao, d.recado, agora, agora, '', '', false,
     ]);
 
@@ -419,12 +408,10 @@ function notificarNoivos_(d, protocolo) {
     if (!para || para.indexOf('TODO') === 0) return;
     const vai = d.comparece === 'sim';
     const corpo = [
-        'Protocolo: ' + protocolo,
+        'Confirmação: ' + protocolo,
         'Nome: ' + d.nome,
         'Contato: ' + d.contato,
         'Vai? ' + (vai ? 'SIM' : 'NÃO'),
-        'Total de pessoas: ' + (vai ? 1 + d.acompanhantes.length : 0),
-        d.acompanhantes.length ? 'Acompanhantes:\n- ' + d.acompanhantes.join('\n- ') : '',
         d.restricao ? 'Restrição: ' + d.restricao : '',
         d.recado ? 'Recado:\n' + d.recado : '',
     ].filter(Boolean).join('\n');
@@ -1042,19 +1029,12 @@ function enviarEmail_(para, assunto, textoPuro, html) {
     }
 }
 
-function tokenDe_(protocolo) {
-    const seg = config_().segredo_token || '';
-    const bytes = Utilities.computeHmacSha256Signature(String(protocolo), seg);
-    return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, '');
-}
-
-function moldura_(titulo, corpoHtml, protocolo) {
+/**
+ * Sem link de descadastro, de propósito: é um casamento, não uma empresa. Quem confirmou
+ * presença recebe os avisos do evento; quem não quer receber, não confirma.
+ */
+function moldura_(titulo, corpoHtml) {
     const cfg = config_();
-    const linkSaida = protocolo
-        ? '<p style="font-size:12px;color:#626247;margin-top:32px">' +
-          '<a href="' + cfg.site_url + '?descadastrar=' + encodeURIComponent(tokenDe_(protocolo)) +
-          '" style="color:#743D05">Não quero mais receber estes e-mails</a></p>'
-        : '';
     return [
         '<div style="font-family:Georgia,serif;background:#F7F1EB;color:#48492A;padding:32px">',
         '<div style="max-width:520px;margin:0 auto">',
@@ -1063,30 +1043,27 @@ function moldura_(titulo, corpoHtml, protocolo) {
         dataEvento_(cfg, true) + ' · ' + cfg.evento_local + '</p>',
         '<h1 style="font-size:22px;margin:0 0 12px">' + titulo + '</h1>',
         corpoHtml,
-        linkSaida,
         '</div></div>',
     ].join('');
 }
 
 function enviarConfirmacao_(protocolo, d) {
     if (d.comparece !== 'sim') {
-        const txtN = 'Recebemos seu aviso, ' + d.nome + '. Que pena que não vai dar!\n\nProtocolo: ' + protocolo;
+        const txtN = 'Recebemos seu aviso, ' + d.nome + '. Que pena que não vai dar!\n\nSua confirmação: ' + protocolo;
         enviarEmail_(d.contato, 'Recebemos seu aviso', txtN,
             moldura_('Obrigado por avisar', '<p>Que pena que não vai dar, ' + d.nome + '. Você vai fazer falta.</p>' +
-                '<p style="font-size:13px;color:#626247">Protocolo: <strong>' + protocolo + '</strong></p>', null));
+                '<p style="font-size:13px;color:#626247">Sua confirmação: <strong>' + protocolo + '</strong></p>'));
         return;
     }
 
     const cfg = config_();
-    const txt = 'Presença confirmada, ' + d.nome + '!\n\nProtocolo: ' + protocolo +
+    const txt = 'Presença confirmada, ' + d.nome + '!\n\nSua confirmação: ' + protocolo +
         '\n' + cfg.evento_local + '\n' + cfg.evento_endereco;
     enviarEmail_(d.contato, 'Presença confirmada!', txt,
         moldura_('Presença confirmada!',
             '<p>A gente mal pode esperar para ver você lá, ' + d.nome + '.</p>' +
-            '<p style="font-size:13px;color:#626247">Protocolo: <strong>' + protocolo + '</strong><br>' +
-            'Pessoas: <strong>' + (1 + d.acompanhantes.length) + '</strong></p>' +
-            '<p><a href="' + cfg.site_url + '/informacoes" style="color:#743D05">Ver informações do grande dia</a></p>',
-            protocolo));
+            '<p style="font-size:13px;color:#626247">Sua confirmação: <strong>' + protocolo + '</strong></p>' +
+            '<p><a href="' + cfg.site_url + '/informacoes" style="color:#743D05">Ver informações do grande dia</a></p>'));
 }
 
 // ---------------------------------------------------------------- campanha
@@ -1129,8 +1106,8 @@ function enviarCampanha(chave) {
     let pulados = 0;
 
     const alvos = lerAba_(ABAS.CONVIDADOS).filter(function (l) {
-        if (String(l.comparece).toLowerCase() !== 'sim') return false; // só quem vai
-        if (ehVerdadeiro_(l.descadastrado)) return false;
+        // Só quem vai, e todos que vão: não há descadastro (ver `moldura_`).
+        if (String(l.comparece).toLowerCase() !== 'sim') return false;
         const feitas = String(l.emails_enviados || '').split(',');
         return feitas.indexOf(chave) === -1;
     });
@@ -1148,7 +1125,7 @@ function enviarCampanha(chave) {
             contato,
             campanha.assunto,
             corpoTexto_(campanha.chave, l, cfg),
-            moldura_(campanha.assunto, corpoHtml_(campanha.chave, l, cfg), String(l.protocolo)),
+            moldura_(campanha.assunto, corpoHtml_(campanha.chave, l, cfg)),
         );
         if (!ok) break; // cota estourou: para e retoma amanhã
 
@@ -1185,7 +1162,7 @@ function corpoHtml_(chave, l, cfg) {
     switch (chave) {
         case 'd30':
             return '<p>Oi, ' + nome + '! Faltam 30 dias.</p>' +
-                '<p>Separamos tudo que você precisa: endereço, como chegar, traje e hospedagem.</p>' +
+                '<p>Separamos tudo que você precisa: endereço, como chegar e traje.</p>' +
                 btn('Ver informações', info);
         case 'd7':
             return '<p>Oi, ' + nome + '! É na próxima semana, <strong>' + dataEvento_(cfg) +
@@ -1202,25 +1179,6 @@ function corpoHtml_(chave, l, cfg) {
         default:
             return '<p>Oi, ' + nome + '!</p>';
     }
-}
-
-// ---------------------------------------------------------------- descadastro
-
-/** Token é HMAC do protocolo. Protocolo cru na URL deixaria qualquer um descadastrar qualquer um. */
-function descadastrar_(token) {
-    if (!token) return json_({ ok: false, msg: 'Token ausente.' });
-
-    const aba = aba_(ABAS.CONVIDADOS);
-    const iDesc = COLUNAS.Convidados.indexOf('descadastrado') + 1;
-    const linhas = lerAba_(ABAS.CONVIDADOS);
-
-    for (let i = 0; i < linhas.length; i++) {
-        if (tokenDe_(linhas[i].protocolo) !== token) continue;
-        aba.getRange(linhas[i]._linha, iDesc).setValue(true);
-        log_('info', 'descadastro', String(linhas[i].protocolo));
-        return json_({ ok: true, msg: 'Pronto, você não recebe mais nossos e-mails.' });
-    }
-    return json_({ ok: false, msg: 'Token inválido.' });
 }
 
 // ============================================================ utilitários
@@ -1362,8 +1320,6 @@ function testeManual() {
                 nome: 'Teste da Silva',
                 contato: 'teste@exemplo.com',
                 comparece: 'sim',
-                acompanhantes: 'Fulano\nBeltrana',
-                restricao: 'Sem glúten',
                 recado: 'Parabéns!',
             }),
         },

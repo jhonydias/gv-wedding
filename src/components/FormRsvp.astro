@@ -62,16 +62,6 @@ const configurado = endpoint.length > 0;
         <p class="campo__erro" id="erro-comparece" hidden></p>
     </fieldset>
 
-    <div class="campo" data-acompanhantes hidden>
-        <label for="acompanhantes">Acompanhantes</label>
-        <textarea
-            id="acompanhantes"
-            name="acompanhantes"
-            rows="3"
-            aria-describedby="ajuda-acompanhantes"></textarea>
-        <p class="campo__ajuda" id="ajuda-acompanhantes">Um nome por linha. Deixe vazio se vier só.</p>
-    </div>
-
     <div class="campo">
         <label for="recado">Recado para os noivos <span class="opcional">(opcional)</span></label>
         <textarea id="recado" name="recado" rows="3" maxlength="500" aria-describedby="erro-recado"></textarea>
@@ -95,10 +85,11 @@ const configurado = endpoint.length > 0;
 <div class="sucesso" data-sucesso tabindex="-1" role="status" hidden>
     <h2 data-sucesso-titulo>Presença confirmada!</h2>
     <p data-sucesso-texto></p>
-    <p class="sucesso__protocolo">
+    <p class="sucesso__codigo">
         {/* Espaço reservado até a resposta do servidor (task 11 §3.4). O mesmo valor
-            está no fallback de `rsvp.ts`; se mudar aqui, mudar lá. */}
-        Protocolo: <strong data-protocolo>&middot;&middot;&middot;</strong>
+            está no fallback de `rsvp.ts`; se mudar aqui, mudar lá.
+            "Sua confirmação", e não "Protocolo": é um casamento, não um atendimento. */}
+        Sua confirmação: <strong data-codigo>&middot;&middot;&middot;</strong>
     </p>
 </div>
 
@@ -124,12 +115,10 @@ const configurado = endpoint.length > 0;
 
     /*
      * O `display: grid` acima vence o `display: none` que o navegador dá ao atributo
-     * `hidden`. Sem esta regra, `hidden` não esconde nada: o campo de acompanhantes aparecia
-     * antes de escolher "Sim", e o formulário continuava na tela depois do envio e depois
-     * do prazo (task 16 §3).
+     * `hidden`. Sem esta regra, `hidden` não esconde nada: o formulário continuava na tela
+     * depois do envio e depois do prazo (task 16 §3).
      */
-    .rsvp[hidden],
-    .campo[hidden] {
+    .rsvp[hidden] {
         display: none;
     }
 
@@ -231,7 +220,11 @@ const configurado = endpoint.length > 0;
     .sucesso h2 {
         margin-block-end: var(--e-2);
     }
-    .sucesso__protocolo {
+    /* O hífen de "GV-0007" é ponto de quebra: sem isto, o código partia em duas linhas. */
+    .sucesso__codigo strong {
+        white-space: nowrap;
+    }
+    .sucesso__codigo {
         margin-block-start: var(--e-2);
         font-size: var(--t-sm);
         letter-spacing: 0.08em;
