@@ -15,6 +15,12 @@ on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
+  # Mudou a própria verificação: roda uma vez para provar que funciona no runner.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/catalogo.yml
+      - tools/catalogo.mjs
 
 permissions:
   actions: write
@@ -34,15 +40,30 @@ jobs:
         with:
           node-version: 24
 
+      # Diagnóstico por outra pilha de rede. Sai como anotação do job, legível pela API
+      # pública sem abrir o log. Não bloqueia nada.
+      - name: Diagnóstico de rede
+        continue-on-error: true
+        run: |
+          curl -sSL -o /dev/null --max-time 60 \
+            -w "::notice::curl catalogo: HTTP %{http_code} em %{time_total}s (dns %{time_namelookup}s, conexao %{time_connect}s, redirects %{num_redirects}, ip %{remote_ip})\n" \
+            "$PUBLIC_BACKEND_URL?acao=catalogo" || echo "::warning::curl catalogo falhou (codigo $?)"
+        env:
+          PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
+
       # Só o catalogo.mjs (sem dependências, sem imagens): é leitura e comparação.
+      # Falhar aqui não pinta o workflow de vermelho a cada 10 min (e-mail a cada 10
+      # min); vira aviso, e a comparação é pulada.
       - name: Ler a planilha
         id: ler
+        continue-on-error: true
         run: node tools/catalogo.mjs
         env:
           PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
 
       - name: Comparar com o publicado
         id: comparar
+        if: steps.ler.outcome == 'success'
         run: |
           local=$(sha256sum src/data/catalogo.json | cut -c1-64)
           remoto=$(curl -fsS "https://jhonydias.github.io/gv-wedding/catalogo-versao.txt?t=$(date +%s)" || echo nenhum)

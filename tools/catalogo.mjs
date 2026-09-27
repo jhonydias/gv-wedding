@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DESTINO = 'src/data/catalogo.json';
-const TIMEOUT_MS = 20000; // cold start do Apps Script chega a ~8s; folga generosa
+const TIMEOUT_MS = 30000; // por tentativa; cold start do Apps Script chega a ~8s
 
 function lerEnv() {
     // Sem dependência: lê o .env na unha.
@@ -39,14 +39,41 @@ if (!base) {
     process.exit(1);
 }
 
-const ctrl = new AbortController();
-const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+/**
+ * Task 17: no runner do GitHub, uma chamada abortou nos 20 s enquanto daqui respondia em
+ * 2 s. Agora são algumas tentativas, e cada falha diz quanto demorou e a causa de rede
+ * (`err.cause`), porque "This operation was aborted" sozinho não diagnostica nada. No
+ * Actions, os avisos viram anotação do job, legível sem abrir o log.
+ */
+const TENTATIVAS = 3;
+const noActions = Boolean(process.env.GITHUB_ACTIONS);
+const avisar = (msg) => console.warn(noActions ? `::warning::${msg}` : msg);
+
+async function buscar() {
+    for (let tentativa = 1; ; tentativa++) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+        const inicio = Date.now();
+        try {
+            const r = await fetch(`${base}?acao=catalogo`, { signal: ctrl.signal });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const j = await r.json();
+            console.log(`catálogo lido em ${Date.now() - inicio} ms (tentativa ${tentativa})`);
+            return j;
+        } catch (err) {
+            const causa = err.cause ? ` [${err.cause.code || err.cause.message}]` : '';
+            avisar(`catálogo: tentativa ${tentativa} falhou em ${Date.now() - inicio} ms: ${err.message}${causa}`);
+            if (tentativa >= TENTATIVAS) throw err;
+            await new Promise((ok) => setTimeout(ok, 3000 * tentativa));
+        } finally {
+            clearTimeout(t);
+        }
+    }
+}
 
 let corpo;
 try {
-    const r = await fetch(`${base}?acao=catalogo`, { signal: ctrl.signal });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    corpo = await r.json();
+    corpo = await buscar();
 } catch (err) {
     console.error(`Falha ao buscar o catálogo: ${err.message}`);
     console.error(
@@ -55,8 +82,6 @@ try {
             : `E não existe ${DESTINO} para usar. O site vai renderizar sem presentes.`,
     );
     process.exit(1);
-} finally {
-    clearTimeout(t);
 }
 
 if (!corpo.ok || !Array.isArray(corpo.presentes)) {
