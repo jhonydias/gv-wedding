@@ -31,7 +31,7 @@ const cria = (a, extra) => a.post({ acao: 'criarPresente', senha: SENHA, nome: '
 const lista = (a) => a.post({ acao: 'listarPresentes', senha: SENHA }).presentes;
 const linhasPresentes = (a) => a.sheets.Presentes.dados.length - 1;
 
-test('ping responde a versão atual', () => assert.equal(base().get('ping').versao, '22.0'));
+test('ping responde a versão atual', () => assert.equal(base().get('ping').versao, '22.1'));
 
 test('entrar certo / errado, sem senha no Log', () => {
     const a = base();

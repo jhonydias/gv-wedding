@@ -229,14 +229,25 @@ export function criarAmbiente({ presentes = [], pagamentos = [], fetchImagem, co
             createTextOutput: (t) => ({ setMimeType() { return this; }, getContent: () => t }),
         },
         MailApp: { getRemainingDailyQuota: () => 100, sendEmail: () => {} },
-        ScriptApp: { getProjectTriggers: () => [], deleteTrigger() {}, newTrigger: () => ({ timeBased: () => ({ atHour: () => ({ everyDays: () => ({ create() {} }) }), everyMinutes: () => ({ create() {} }) }) }) },
+        ScriptApp: (() => {
+            // Gatilhos com estado: `_gatilhos()` diz quais funções estão agendadas.
+            const gatilhos = [];
+            const criar = (fn) => ({ create() { const t = { getHandlerFunction: () => fn }; gatilhos.push(t); return t; } });
+            return {
+                getProjectTriggers: () => gatilhos.slice(),
+                deleteTrigger: (t) => { const i = gatilhos.indexOf(t); if (i !== -1) gatilhos.splice(i, 1); },
+                newTrigger: (fn) => ({ timeBased: () => ({ atHour: () => ({ everyDays: () => criar(fn) }), everyMinutes: () => criar(fn) }) }),
+                _gatilhos: () => gatilhos.map((t) => t.getHandlerFunction()),
+            };
+        })(),
         Logger: { log: (m) => logs.push(m) },
     };
     ctx.globalThis = ctx;
     vm.createContext(ctx);
     vm.runInContext(
         CODIGO + '\n;globalThis.__x = { doPost, doGet, COLUNAS, txidDe_, definirSenhaNoivos, definirTokenMercadoPago,' +
-            ' varrerPagamentos, conciliar_, configurarMercadoPago, testePreferencia, enviarCampanha, lerAba_ };',
+            ' varrerPagamentos, conciliar_, configurarMercadoPago, testePreferencia, enviarCampanha, lerAba_,' +
+            ' ligarTesteMercadoPago, desligarMercadoPago, limparTesteMercadoPago };',
         ctx,
     );
 

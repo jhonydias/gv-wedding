@@ -417,3 +417,59 @@ test('testePreferencia devolve os campos que a API confirmou', () => {
     assert.equal(c.binary_mode, true);
     assert.match(c.notification_url, /chave=\*\*\*$/);
 });
+
+// ------------------------------------------------------------------ ligar e desligar
+
+test('ligarTesteMercadoPago: modo teste, só a varredura agendada, link e webhook no retorno', () => {
+    const a = base({ modo: 'pix' });
+    const msg = a.x.ligarTesteMercadoPago();
+    const cfg = Object.fromEntries(a.linhas('Config').map((l) => [l.chave, l.valor]));
+    assert.equal(cfg.pagamento_modo, 'teste');
+    assert.deepEqual(a.ctx.ScriptApp._gatilhos(), ['varrerPagamentos']); // campanha NÃO
+    const chave = a.ctx.PropertiesService.getScriptProperties().getProperty('mp_chave_teste');
+    assert.ok(msg.includes('https://giseleevictor.com.br/presentes/?teste=' + chave), msg);
+    assert.match(msg, /\?acao=mp_webhook&chave=[0-9a-f]{40}/);
+    assert.equal(a.get('status').pagamento, 'teste');
+    assert.equal(checkout(a, { chave_teste: chave }).ok, true);
+    assert.equal(checkout(a).motivo, 'indisponivel'); // sem a chave, continua Pix
+
+    a.x.ligarTesteMercadoPago(); // de novo: não duplica o gatilho
+    assert.deepEqual(a.ctx.ScriptApp._gatilhos(), ['varrerPagamentos']);
+});
+
+test('ligarTesteMercadoPago sem token: recusa e não muda o modo', () => {
+    const a = base({ modo: 'pix', token: null });
+    assert.throws(() => a.x.ligarTesteMercadoPago(), /definirTokenMercadoPago/);
+    assert.equal(a.get('status').pagamento, 'pix');
+    assert.deepEqual(a.ctx.ScriptApp._gatilhos(), []);
+});
+
+test('desligarMercadoPago: volta ao Pix na hora, sem apagar token nem reservas', () => {
+    const a = base({ modo: 'mercadopago' });
+    const r = checkout(a);
+    a.x.desligarMercadoPago();
+    assert.equal(a.get('status').pagamento, 'pix');
+    assert.equal(checkout(a).motivo, 'indisponivel');
+    assert.equal(pagamento(a, r.ref).status, 'pendente');
+    assert.ok(a.ctx.PropertiesService.getScriptProperties().getProperty('mp_access_token'));
+});
+
+test('limparTesteMercadoPago: apaga só as linhas do Mercado Pago, e nunca com token de produção', () => {
+    const a = base();
+    const r1 = checkout(a);
+    webhook(a, { type: 'payment', data: { id: a.mp.pagar(r1.ref).id } });
+    checkout(a, { presente_id: 'vela' });
+    a.post({ acao: 'reservar', presente_id: 'vela', nome: 'Pix Manual' });
+    const manuais = a.linhas('Pagamentos').filter((l) => l.canal !== 'mercadopago');
+    assert.equal(a.linhas('Pagamentos').length - manuais.length, 2);
+
+    assert.match(a.x.limparTesteMercadoPago(), /2 linha/);
+    assert.deepEqual(a.linhas('Pagamentos'), manuais);
+    assert.equal(a.get('status').status.geladeira.disponivel, true);
+
+    const p = base();
+    checkout(p);
+    p.x.definirTokenMercadoPago(TOKEN, 'producao');
+    assert.throws(() => p.x.limparTesteMercadoPago(), /produção/);
+    assert.equal(p.linhas('Pagamentos').length, 1);
+});

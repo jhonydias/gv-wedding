@@ -215,7 +215,7 @@ function doGet(e) {
             case 'ping':
                 return json_({
                     ok: true,
-                    versao: '22.0',
+                    versao: '22.1',
                     hora: new Date().toISOString(),
                     pagamento: modoPagamento_(config_()),
                     mp: mpToken_() ? (PropertiesService.getScriptProperties().getProperty('mp_ambiente') || '?') : 'sem_token',
@@ -1786,6 +1786,69 @@ function configurarMercadoPago() {
     ].join('\n');
     Logger.log(msg);
     log_('info', 'configurarMercadoPago', 'ok');
+    return msg;
+}
+
+/** Muda `pagamento_modo` na Config e invalida os caches que dependem dele. */
+function definirModoPagamento_(modo) {
+    const t = lerTabela_(ABAS.CONFIG);
+    const l = t.linhas.filter(function (x) { return String(x.chave) === 'pagamento_modo'; })[0];
+    if (l) t.aba.getRange(l._linha, t.cab.indexOf('valor') + 1).setValue(modo);
+    else t.aba.appendRow(['pagamento_modo', modo]);
+    CacheService.getScriptCache().removeAll(['config', 'status']);
+    log_('info', 'pagamento_modo', modo);
+}
+
+/**
+ * Liga o modo teste num passo só, depois de `definirTokenMercadoPago(…, 'teste')`: chaves da
+ * Config, `pagamento_modo = teste` e o gatilho da varredura. Não usa `instalarGatilhos()`,
+ * que reinstalaria também a campanha de e-mail. Devolve o link do modo teste e o webhook.
+ */
+function ligarTesteMercadoPago() {
+    if (!mpToken_()) throw new Error('Sem token: rode antes definirTokenMercadoPago(\'APP_USR-…\', \'teste\').');
+    const msg = configurarMercadoPago();
+    definirModoPagamento_('teste');
+    ScriptApp.getProjectTriggers().forEach(function (t) {
+        if (t.getHandlerFunction() === 'varrerPagamentos') ScriptApp.deleteTrigger(t);
+    });
+    ScriptApp.newTrigger('varrerPagamentos').timeBased().everyMinutes(10).create();
+    const saida = msg.replace(/pagamento_modo atual: \w+/, 'pagamento_modo atual: teste') + '\nvarredura a cada 10 min: instalada';
+    Logger.log(saida);
+    return saida;
+}
+
+/** Volta ao Pix estático na próxima requisição. Não apaga token, gatilho nem reservas. */
+function desligarMercadoPago() {
+    definirModoPagamento_('pix');
+    return 'pagamento_modo = pix';
+}
+
+/**
+ * Depois do modo teste e ANTES do token de produção: apaga de `Pagamentos` as linhas do
+ * Mercado Pago (todas de teste até aqui), para não aparecerem como presentes recebidos. As
+ * do Pix manual ficam. Com token de produção gravado, recusa.
+ */
+function limparTesteMercadoPago() {
+    if (propsMp_().getProperty('mp_ambiente') === 'producao') {
+        throw new Error('Token de produção gravado: as linhas do Mercado Pago podem ser de verdade. Nada apagado.');
+    }
+    const lock = LockService.getScriptLock();
+    lock.waitLock(LIMITES.LOCK_MS);
+    let n = 0;
+    try {
+        const t = lerTabela_(ABAS.PAGAMENTOS);
+        t.linhas
+            .filter(function (l) { return String(l.canal) === 'mercadopago'; })
+            .map(function (l) { return l._linha; })
+            .sort(function (a, b) { return b - a; })
+            .forEach(function (linha) { t.aba.deleteRow(linha); n++; });
+        CacheService.getScriptCache().remove('status');
+    } finally {
+        lock.releaseLock();
+    }
+    const msg = n + ' linha(s) de teste do Mercado Pago apagada(s)';
+    log_('info', 'limparTesteMercadoPago', msg);
+    Logger.log(msg);
     return msg;
 }
 
