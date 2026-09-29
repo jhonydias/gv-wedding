@@ -18,10 +18,13 @@ const PRESENTES = [
     ['fora', 'Fora do site', 100, 'casa', '', '', false, 1, 50, false],
 ];
 
-/** Ambiente com o Mercado Pago LIGADO (modo e token), salvo se `modo` disser outra coisa. */
-function base({ modo = 'mercadopago', token = TOKEN } = {}) {
+/**
+ * Ambiente com o Mercado Pago LIGADO (modo e token), salvo se `modo` disser outra coisa. O
+ * token é de produção por padrão: é o caso em que os e-mails saem sem o "[TESTE] ".
+ */
+function base({ modo = 'mercadopago', token = TOKEN, ambiente = 'producao' } = {}) {
     const a = criarAmbiente({ presentes: PRESENTES, config: [['pagamento_modo', modo]] });
-    if (token) a.x.definirTokenMercadoPago(token, 'teste');
+    if (token) a.x.definirTokenMercadoPago(token, ambiente);
     return a;
 }
 
@@ -455,7 +458,7 @@ test('desligarMercadoPago: volta ao Pix na hora, sem apagar token nem reservas',
 });
 
 test('limparTesteMercadoPago: apaga só as linhas do Mercado Pago, e nunca com token de produção', () => {
-    const a = base();
+    const a = base({ ambiente: 'teste' });
     const r1 = checkout(a);
     webhook(a, { type: 'payment', data: { id: a.mp.pagar(r1.ref).id } });
     checkout(a, { presente_id: 'vela' });
@@ -469,7 +472,33 @@ test('limparTesteMercadoPago: apaga só as linhas do Mercado Pago, e nunca com t
 
     const p = base();
     checkout(p);
-    p.x.definirTokenMercadoPago(TOKEN, 'producao');
     assert.throws(() => p.x.limparTesteMercadoPago(), /produção/);
     assert.equal(p.linhas('Pagamentos').length, 1);
+});
+
+test('token de teste: e-mails do Mercado Pago saem com [TESTE]; os de RSVP não', () => {
+    const a = base({ ambiente: 'teste' });
+    const r = checkout(a, { presente_id: 'vela', valor: undefined });
+    webhook(a, { type: 'payment', data: { id: a.mp.pagar(r.ref, { valor: 9 }).id } }); // divergente
+    const r2 = checkout(a);
+    webhook(a, { type: 'payment', data: { id: a.mp.pagar(r2.ref).id } });
+    const assuntos = a.emails().map((e) => e.assunto);
+    assert.ok(assuntos.includes('[TESTE] Presente recebido: Geladeira, de Tia Marta'), assuntos.join(' | '));
+    assert.ok(assuntos.some((t) => t.startsWith('[TESTE] [ATENÇÃO]')), assuntos.join(' | '));
+    assert.ok(assuntos.every((t) => t.startsWith('[TESTE] ')), assuntos.join(' | '));
+    a.post({ acao: 'rsvp', nome: 'Convidada RSVP', contato: 'c@exemplo.com', comparece: 'sim' });
+    assert.ok(a.emails().map((e) => e.assunto).filter((t) => !t.startsWith('[TESTE] ')).length >= 1);
+});
+
+test('webhook deixa rastro no Log com o id do pagamento; chave errada não', () => {
+    const a = base();
+    const r = checkout(a);
+    const pid = a.mp.pagar(r.ref).id;
+    webhook(a, { type: 'payment', data: { id: pid } });
+    const rastros = a.sheets.Log.dados.filter((l) => l[2] === 'mp_webhook' && l[1] === 'info');
+    assert.equal(rastros.length, 1);
+    assert.match(String(rastros[0][3]), new RegExp(pid));
+    assert.doesNotMatch(String(rastros[0][3]), /chave=/);
+    a.post({ type: 'payment', data: { id: pid } }, { acao: 'mp_webhook', chave: 'errada' });
+    assert.equal(a.sheets.Log.dados.filter((l) => l[2] === 'mp_webhook' && l[1] === 'info').length, 1);
 });

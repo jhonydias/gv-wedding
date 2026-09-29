@@ -1544,7 +1544,7 @@ function conciliar_(ref) {
 
     // 3. E-mail, SEM lock.
     if (resultado && resultado.confirmouAgora) avisarPresente_(resultado.linha);
-    avisos.forEach(function (a) { avisarNoivos_(a.slice(0, 120), a); });
+    avisos.forEach(function (a) { avisarNoivos_(prefixoTeste_() + a.slice(0, 120), a); });
     return { mudou: resultado.mudou, status: resultado.status, alerta: resultado.alerta };
 }
 
@@ -1578,6 +1578,8 @@ function mpWebhook_(e) {
     if (tipo && tipo !== 'payment' && acao.indexOf('payment') !== 0) return; // merchant_order etc.
     const id = String((corpo.data && corpo.data.id) || q['data.id'] || q.id || '').replace(/\D/g, '');
     if (!id) return;
+    // Rastro de que o Mercado Pago chegou até aqui (a página de retorno também confirma).
+    log_('info', 'mp_webhook', 'pagamento ' + id);
 
     const pg = mpFetch_('get', '/v1/payments/' + id);
     const ref = String(pg.external_reference || '');
@@ -1714,6 +1716,11 @@ function avisarNoivos_(assunto, texto) {
     enviarEmail_(para, assunto, texto, null);
 }
 
+/** Com token de teste, os e-mails do Mercado Pago avisam que são de teste. */
+function prefixoTeste_() {
+    return propsMp_().getProperty('mp_ambiente') === 'teste' ? '[TESTE] ' : '';
+}
+
 /** "Presente recebido": o que alimenta os cartões de agradecimento (§6.7). */
 function avisarPresente_(l) {
     const p = lerAba_(ABAS.PRESENTES).filter(function (x) { return String(x.id).trim() === String(l.presente_id); })[0];
@@ -1726,7 +1733,7 @@ function avisarPresente_(l) {
         l.recado ? 'Recado: "' + l.recado + '"' : '',
         l.contato ? 'Contato: ' + l.contato : '',
     ].filter(Boolean).join('\n');
-    avisarNoivos_('Presente recebido: ' + nomePresente + ', de ' + l.nome, texto);
+    avisarNoivos_(prefixoTeste_() + 'Presente recebido: ' + nomePresente + ', de ' + l.nome, texto);
 }
 
 // ---------------------------------------------------------------- área dos noivos
