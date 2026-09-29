@@ -307,32 +307,28 @@ depois de consultar a API do Mercado Pago. Três caminhos pedem essa consulta: o
 página `/presentes/obrigado/` (a cada 4 s enquanto o convidado olha) e o gatilho
 `varrerPagamentos` (a cada 10 min). Nenhum resultado depende do webhook chegar.
 
-**Ligar, na ordem:**
+**Ligar, na ordem** (testado de ponta a ponta em 28/09/2026 com o token de teste):
 
-1. Publicar esta versão do `Code.gs` (seção 4). Nada muda para os convidados: `pagamento_modo`
-   nasce `pix`.
+1. Publicar o `Code.gs` (seção 4). `?acao=ping` deve dizer `versao: "22.1"`. Nada muda para
+   os convidados: `pagamento_modo` nasce `pix`.
 2. No editor, gravar o Access Token **de teste** com uma função temporária, rodar e **apagar a
    função**:
    ```js
    function tmp() { definirTokenMercadoPago('APP_USR-…', 'teste'); }
    ```
-3. Rodar **`testeMercadoPago()`**: deve imprimir "ok: N meios de pagamento".
-4. Rodar **`configurarMercadoPago()`**: cria as colunas e chaves novas e **imprime a URL do
-   webhook** e o link do modo teste.
-5. Conferir na aba `Config`: `site_url` = `https://giseleevictor.com.br` (é para onde o
-   Mercado Pago devolve o convidado) e `backend_url` = a URL `/exec` que o site usa.
-6. Rodar **`testePreferencia()`** e ler o log: `binary_mode: true`, `back_urls` no domínio certo,
-   `excluded_payment_types` com `ticket` e `atm`.
-7. Rodar **`instalarGatilhos()`** (agora instala também a varredura).
-8. Painel do Mercado Pago → a aplicação → **Webhooks**: colar a URL do passo 4, evento só
-   **Pagamentos**.
-9. `pagamento_modo` = **`teste`**. Só quem abre o site com o link `?teste=…` do passo 4 chega ao
-   checkout; o resto continua no Pix. Testar com o **comprador de teste** e os cartões de teste
-   (task 22 §9.2).
-10. Produção: `definirTokenMercadoPago('APP_USR-…', 'producao')`, dois pagamentos reais de R$ 5 e
-    estorno (task 22 §9.3), e então `pagamento_modo` = **`mercadopago`**.
+3. Rodar **`testeMercadoPago()`**: deve imprimir "ok: N meios de pagamento; ambiente teste".
+4. Rodar **`ligarTesteMercadoPago()`**: cria as chaves da `Config`, põe `pagamento_modo = teste`,
+   instala **só** a varredura (a `instalarGatilhos()` reinstalaria também a campanha de e-mail)
+   e imprime a URL do webhook e o link `/presentes/?teste=…`.
+5. Pagar pelo link de teste, numa janela anônima, com o **comprador de teste** e os cartões de
+   teste (task 22 §9.2). O Mastercard de teste `5031…` não é reconhecido nessa conta; o Visa
+   `4235 6477 2802 5682` é. Titular `APRO` aprova, `OTHE` recusa. Com token de teste, os
+   e-mails do Mercado Pago saem com `[TESTE]` no assunto.
+6. **Antes do token de produção**, rodar **`limparTesteMercadoPago()`**: apaga de `Pagamentos` as
+   linhas do Mercado Pago (todas de teste). Com token de produção gravado, ela recusa.
+7. Produção: `tasks/22/VIRADA-PRODUCAO.md`, passo a passo.
 
-**Desligar sem deploy:** `pagamento_modo` = `pix`. Na próxima requisição o site volta ao Pix
+**Desligar sem deploy:** `desligarMercadoPago()`, ou `pagamento_modo` = `pix` na `Config`. Na próxima requisição o site volta ao Pix
 estático.
 
 | `pagamento_modo` | Botão "Presentear" |
@@ -350,7 +346,12 @@ aparece em "Presentes recebidos" na área dos noivos.
 **Estorno:** pelo painel do Mercado Pago. A varredura percebe e devolve a cota ao site.
 
 **Testes:** `npm run test:backend` roda o `Code.gs` real contra planilha e Mercado Pago
-simulados (também no CI, antes do build).
+simulados (também no CI, antes do build). `tests/backend/ao-vivo.mjs` roda o mesmo `Code.gs`
+contra a **API real**, com o token de teste em `MP_TOKEN_TESTE` (nunca no CI).
+
+**Webhook:** o Mercado Pago entrega, mas reenvia algumas vezes (o Apps Script responde 302).
+Cada chegada deixa `mp_webhook · pagamento <id>` no `Log`. Reenvio não tem efeito: a
+conciliação é idempotente.
 
 **Mesas:** preencha a coluna `mesa` em `Convidados` à mão.
 
