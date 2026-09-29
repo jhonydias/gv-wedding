@@ -303,3 +303,16 @@ test('nome aceita até 100 letras', () => {
     assert.equal(cria(a, { nome: 'x'.repeat(100) }).ok, true);
     assert.equal(cria(a, { nome: 'y'.repeat(101) }).campo, 'nome');
 });
+
+test('migrarCategorias: presente-teste sai do site sem perder o pagamento', () => {
+    const a = criarAmbiente({
+        presentes: [['presente-teste', 'presente teste', 10, 'lembranca', '', '', true, 1, 380]],
+        pagamentos: [['p1', 'presente-teste', 'A', '', 10, 'confirmado', '', '']],
+    });
+    a.x.migrarCategorias();
+    const l = a.sheets.Presentes.dados[1];
+    assert.equal(l[0], 'presente-teste'); assert.equal(l[3], 'resenha'); assert.equal(l[6], false);
+    assert.ok(!a.get('catalogo').presentes.some((p) => p.id === 'presente-teste'));
+    assert.equal(a.sheets.Pagamentos.dados[1][1], 'presente-teste');
+    assert.match(a.x.migrarCategorias(), /^0 célula/);
+});

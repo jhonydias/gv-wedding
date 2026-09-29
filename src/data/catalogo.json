@@ -218,16 +218,5 @@
     "cotas": null,
     "ordem": 375,
     "valor_livre": false
-  },
-  {
-    "id": "presente-teste",
-    "nome": "presente teste",
-    "valor": 10,
-    "faixa": "resenha",
-    "imagem": "",
-    "descricao": "",
-    "cotas": 1,
-    "ordem": 380,
-    "valor_livre": false
   }
 ]

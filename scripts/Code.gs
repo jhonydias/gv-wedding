@@ -2194,8 +2194,9 @@ const MIGRACAO_CATEGORIAS = {
     'curso-de-pedreiro-para-o-noivo-atender-t': { faixa: 'resenha', nome: 'Curso de pedreiro pra que o noivo faça tudo que a noiva quer' },
     'ajuda-de-amigo-a-pra-gente-nao-se-endivi': { faixa: 'resenha' },
     'conserto-da-poltrona-que-a-ruth-comeu': { faixa: 'resenha', ordem: 375 },
-    // Fora da lista dos noivos: criado para teste de pagamento. Fica visível, no fim.
-    'presente-teste': { faixa: 'resenha' },
+    // Fora da lista dos noivos: criado para teste de pagamento. Tem pagamento, então não
+    // pode ser apagado (deixaria a linha de Pagamentos órfã): só sai do site.
+    'presente-teste': { faixa: 'resenha', ativo: false },
 };
 
 function migrarCategorias() {
@@ -2215,6 +2216,7 @@ function migrarCategorias() {
         if (categoriaDe_(p.faixa) !== m.faixa) gravar(p._linha, 'faixa', m.faixa);
         if (m.nome !== undefined && String(p.nome) !== m.nome) gravar(p._linha, 'nome', textoSeguro_(m.nome));
         if (m.ordem !== undefined && Number(p.ordem) !== m.ordem) gravar(p._linha, 'ordem', m.ordem);
+        if (m.ativo !== undefined && ehVerdadeiro_(p.ativo) !== m.ativo) gravar(p._linha, 'ativo', m.ativo);
     });
     const faltando = Object.keys(MIGRACAO_CATEGORIAS).filter(function (id) { return !vistos[id]; });
     CacheService.getScriptCache().removeAll(['catalogo', 'status']);
