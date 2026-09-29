@@ -29,6 +29,18 @@ const ABAS = {
     LOG: 'Log',
 };
 
+/**
+ * Categorias dos presentes, gravadas na coluna `faixa` (o nome ficou da task 17, quando a
+ * faixa era derivada do valor). Desde 29/09/2026 os noivos escolhem a categoria no painel.
+ * Espelha `FAIXAS` de src/data/presentes.ts e o `tools/catalogo.mjs`: mudou lá, muda aqui.
+ */
+const CATEGORIAS = ['salvador', 'gisele', 'victor', 'ruth', 'resenha'];
+
+/** Categoria como pode ter sido digitada à mão na planilha: sem espaço, minúscula. */
+function categoriaDe_(v) {
+    return String(v || '').trim().toLowerCase();
+}
+
 const COLUNAS = {
     // Colunas novas entram SEMPRE no fim: a planilha em uso já tem as antigas, e
     // `garantirEsquema_()` só acrescenta o que falta à direita (task 22 §5.1).
@@ -215,7 +227,7 @@ function doGet(e) {
             case 'ping':
                 return json_({
                     ok: true,
-                    versao: '22.1',
+                    versao: '22.2',
                     hora: new Date().toISOString(),
                     pagamento: modoPagamento_(config_()),
                     mp: mpToken_() ? (PropertiesService.getScriptProperties().getProperty('mp_ambiente') || '?') : 'sem_token',
@@ -254,7 +266,7 @@ function catalogo_() {
                 id: String(p.id).trim(),
                 nome: String(p.nome),
                 valor: Number(p.valor) || 0,
-                faixa: String(p.faixa || 'casa'),
+                faixa: categoriaDe_(p.faixa),
                 imagem: String(p.imagem || ''),
                 descricao: String(p.descricao || ''),
                 cotas: p.cotas === '' || p.cotas === null ? null : Number(p.cotas),
@@ -584,10 +596,6 @@ const ADMIN = {
     IDEMPOTENCIA_S: 600,
     REPO: 'jhonydias/gv-wedding',
     WORKFLOW: 'deploy.yml',
-    // Mesmas fronteiras de FAIXAS em src/data/presentes.ts ("Até R$ 150", "De R$ 150 a
-    // R$ 800", "Acima de R$ 800"). Mudou lá, muda aqui: `faixaDe()` no site espelha esta.
-    TETO_LEMBRANCA: 150,
-    TETO_CASA: 800,
 };
 
 function sha256Hex_(texto) {
@@ -740,7 +748,7 @@ function presenteDaLinha_(p, pagamentos) {
         id: id,
         nome: String(p.nome),
         valor: Number(p.valor) || 0,
-        faixa: String(p.faixa || ''),
+        faixa: categoriaDe_(p.faixa),
         imagem: String(p.imagem || ''),
         descricao: String(p.descricao || ''),
         cotas: p.cotas === '' || p.cotas === null ? null : Number(p.cotas),
@@ -762,13 +770,6 @@ function listarPresentes_() {
 }
 
 // ---------------------------------------------------------------- regras
-
-function faixaDe_(valor, luademel) {
-    if (luademel) return 'luademel';
-    if (valor <= ADMIN.TETO_LEMBRANCA) return 'lembranca';
-    if (valor <= ADMIN.TETO_CASA) return 'casa';
-    return 'grande';
-}
 
 /** Espelha `txidDe()` de src/lib/pix.ts. Mudou lá, muda aqui. */
 function txidDe_(slug) {
@@ -838,7 +839,7 @@ function validarPresente_(d) {
     nome = nomeT;
     descricao = descT;
 
-    if (nome.length < 2 || nome.length > 60) return erro('nome', 'Dê um nome ao presente, com até 60 letras.');
+    if (nome.length < 2 || nome.length > 100) return erro('nome', 'Dê um nome ao presente, com até 100 letras.');
     if (descricao.length > 140) return erro('descricao', 'Use no máximo 140 caracteres na descrição.');
 
     const valor = Number(d.valor);
@@ -860,7 +861,12 @@ function validarPresente_(d) {
         }
     }
 
-    const luademel = d.luademel === true;
+    // Sem `categoria` só vem do painel antigo, ainda aberto num celular: no editar, a
+    // categoria atual fica; no criar, pede para atualizar a página.
+    const categoria = categoriaDe_(d.categoria);
+    if (categoria && CATEGORIAS.indexOf(categoria) === -1) {
+        return erro('categoria', 'Escolha uma categoria da lista.');
+    }
     // Task 22 §5.4: o convidado escolhe o valor; `valor` vira o mínimo. Só faz sentido sem
     // limite de pessoas (uma "cota única" de valor livre não tem significado).
     const valorLivre = d.valor_livre === true;
@@ -873,7 +879,7 @@ function validarPresente_(d) {
         campos: {
             nome: nome,
             valor: valor,
-            faixa: faixaDe_(valor, luademel),
+            faixa: categoria || null,
             imagem: imagemBruta,
             descricao: descricao,
             ativo: d.publicar !== false,
@@ -960,6 +966,7 @@ function criarPresente_(d) {
     const v = validarPresente_(d);
     if (!v.ok) return v;
     const c = v.campos;
+    if (!c.faixa) return { ok: false, msg: 'Atualize a página: agora cada presente tem uma categoria.' };
 
     // Rede fora do lock.
     if (c.imagem) {
@@ -1042,7 +1049,8 @@ function editarPresente_(d) {
         const rep = avisoImagemRepetida_(c.imagem, t.linhas, id);
         if (rep) v.avisos.push(rep);
 
-        const mudouFaixa = String(p.faixa) !== c.faixa;
+        if (!c.faixa) c.faixa = categoriaDe_(p.faixa);
+        const mudouFaixa = categoriaDe_(p.faixa) !== c.faixa;
         const ordem = mudouFaixa
             ? t.linhas.reduce(function (m, l) { return Math.max(m, Number(l.ordem) || 0); }, 0) + 10
             : p.ordem;
@@ -2153,6 +2161,68 @@ function prazoEncerrado_(cfg) {
     return Date.now() > limite;
 }
 
+// ============================================================ migrações
+
+/**
+ * 29/09/2026: as faixas por valor (lembranca, casa, grande, luademel) viraram as categorias
+ * escolhidas pelos noivos, e os nomes seguiram a lista deles. Acha cada presente pelo ID,
+ * que é estável (é o txid do Pix), nunca pelo nome ou pela posição da linha. O id não muda,
+ * então os pagamentos continuam ligados ao presente.
+ *
+ * Rode no editor: escolha `migrarCategorias` → ▶ Executar. Idempotente.
+ * Id que não estiver na aba é listado no retorno e no Log, sem erro.
+ */
+const MIGRACAO_CATEGORIAS = {
+    // `nome` e `ordem` só onde mudam. A ordem segue a sequência da lista dos noivos.
+    'tabua-de-servir': { faixa: 'salvador' },
+    'jogo-de-cama': { faixa: 'salvador', nome: 'Sessão de massagem de casal pós-maratona de trio elétrico' },
+    'micro-ondas': { faixa: 'salvador', nome: 'Camarote Brahma no Carnaval de Salvador (acabou o dinheiro mas a gente não quer deixar de ir)' },
+    'aspirador': { faixa: 'salvador', nome: 'Luvas de boxe pra ir na pipoca do trio elétrico do Bell Marques' },
+    'jogo-de-panelas': { faixa: 'salvador', nome: 'Jantar Romântico pra fingir que não ficamos lisos pós-festa' },
+    'maquina-de-lavar': { faixa: 'salvador' },
+    'mais-um-batom-identico-aos-20-que-a-noiv': { faixa: 'gisele', nome: 'Mais um batom idêntico aos outros 20 que a Gisele já tem' },
+    'taxa-do-amor-so-mais-uma-comprinha-na-se': { faixa: 'gisele' },
+    'upgrade-na-mala-da-gisele-porque-metade': { faixa: 'gisele', nome: 'Upgrade na mala da Gisele (porque metade é só maquiagem)' },
+    'trena-rosa-brilhante-que-a-gisele-disse': { faixa: 'gisele', nome: 'Trena rosa com brilho que a Gisele disse que PRECISA' },
+    'camisa-de-time-nova-que-a-gisele-vai-ach': { faixa: 'victor' },
+    'fisioterapia-pro-joelho-podre-do-noivo-p': { faixa: 'victor' },
+    'cota-para-o-noivo-deixar-de-ser-palestri': { faixa: 'victor', nome: 'Cota pro noivo não virar palestrinha depois que bebe' },
+    'consultoria-financeira-sem-julgamentos-c': { faixa: 'victor' },
+    'spa-da-ruth-para-ela-esquecer-que-viajam': { faixa: 'ruth', nome: 'Spa do salsichinha (para ela esquecer que viajamos sem ela)' },
+    'pensao-alimenticia-da-ruth-para-2027': { faixa: 'ruth' },
+    'coleira-chique-pra-ruth-passear-na-batis': { faixa: 'ruth' },
+    'curso-de-pedreiro-para-o-noivo-atender-t': { faixa: 'resenha', nome: 'Curso de pedreiro pra que o noivo faça tudo que a noiva quer' },
+    'ajuda-de-amigo-a-pra-gente-nao-se-endivi': { faixa: 'resenha' },
+    'conserto-da-poltrona-que-a-ruth-comeu': { faixa: 'resenha', ordem: 375 },
+    // Fora da lista dos noivos: criado para teste de pagamento. Fica visível, no fim.
+    'presente-teste': { faixa: 'resenha' },
+};
+
+function migrarCategorias() {
+    const t = lerPresentes_();
+    const col = function (c) { return t.cab.indexOf(c) + 1; };
+    const vistos = {};
+    let mudou = 0;
+    const gravar = function (linha, c, valor) {
+        t.aba.getRange(linha, col(c)).setValue(valor);
+        mudou++;
+    };
+    t.linhas.forEach(function (p) {
+        const id = String(p.id).trim();
+        const m = MIGRACAO_CATEGORIAS[id];
+        if (!m) return;
+        vistos[id] = true;
+        if (categoriaDe_(p.faixa) !== m.faixa) gravar(p._linha, 'faixa', m.faixa);
+        if (m.nome !== undefined && String(p.nome) !== m.nome) gravar(p._linha, 'nome', textoSeguro_(m.nome));
+        if (m.ordem !== undefined && Number(p.ordem) !== m.ordem) gravar(p._linha, 'ordem', m.ordem);
+    });
+    const faltando = Object.keys(MIGRACAO_CATEGORIAS).filter(function (id) { return !vistos[id]; });
+    CacheService.getScriptCache().removeAll(['catalogo', 'status']);
+    const r = mudou + ' célula(s) alterada(s)' + (faltando.length ? '; não encontrados: ' + faltando.join(', ') : '');
+    log_('info', 'migrarCategorias', r);
+    return r;
+}
+
 // ============================================================ dados de teste
 
 /**
@@ -2169,26 +2239,26 @@ function prazoEncerrado_(cfg) {
 function semearPresentes() {
     const FAKE = [
         // id, nome, valor, faixa, imagem, descricao, ativo, cotas, ordem
-        ['jogo-de-tacas', 'Jogo de taças', 90, 'lembranca', '', 'Seis taças de cristal', true, 1, 10],
-        ['toalhas', 'Jogo de toalhas', 120, 'lembranca', '', '', true, 1, 20],
-        ['vela-aromatica', 'Vela aromática', 95, 'lembranca', '', '', true, 3, 30],
-        ['tabua-de-servir', 'Tábua de servir', 140, 'lembranca', '', '', true, 1, 40],
-        ['jogo-de-jantar', 'Jogo de jantar', 320, 'casa', '', 'Para as visitas de domingo', true, 1, 50],
-        ['jogo-de-cama', 'Jogo de cama', 280, 'casa', '', '', true, 1, 60],
-        ['liquidificador', 'Liquidificador', 250, 'casa', '', '', true, 1, 70],
-        ['air-fryer', 'Air fryer', 450, 'casa', '', '', true, 1, 80],
-        ['micro-ondas', 'Micro-ondas', 700, 'casa', '', '', true, 1, 90],
-        ['aspirador', 'Aspirador', 600, 'casa', '', '', true, 1, 100],
-        ['jogo-de-panelas', 'Jogo de panelas', 520, 'casa', '', '', true, 1, 110],
-        ['geladeira', 'Geladeira', 2500, 'grande', '', 'Cota única: a maior de todas', true, 1, 120],
-        ['maquina-de-lavar', 'Máquina de lavar', 2200, 'grande', '', '', true, 1, 130],
-        ['sofa', 'Sofá', 1800, 'grande', '', '', true, 1, 140],
-        ['colchao', 'Colchão', 1500, 'grande', '', '', true, 1, 150],
-        ['passagem', 'Cota da passagem', 500, 'luademel', '', '', true, '', 160],
-        ['hospedagem', 'Cota da hospedagem', 800, 'luademel', '', '', true, '', 170],
-        ['passeio', 'Um passeio a dois', 300, 'luademel', '', '', true, '', 180],
-        ['jantar-especial', 'Um jantar especial', 400, 'luademel', '', '', true, '', 190],
-        ['lua-de-mel-livre', 'Cota livre da lua de mel', 200, 'luademel', '', 'Qualquer valor ajuda', true, '', 200],
+        ['jogo-de-tacas', 'Jogo de taças', 90, 'resenha', '', 'Seis taças de cristal', true, 1, 10],
+        ['toalhas', 'Jogo de toalhas', 120, 'resenha', '', '', true, 1, 20],
+        ['vela-aromatica', 'Vela aromática', 95, 'resenha', '', '', true, 3, 30],
+        ['tabua-de-servir', 'Tábua de servir', 140, 'resenha', '', '', true, 1, 40],
+        ['jogo-de-jantar', 'Jogo de jantar', 320, 'resenha', '', 'Para as visitas de domingo', true, 1, 50],
+        ['jogo-de-cama', 'Jogo de cama', 280, 'resenha', '', '', true, 1, 60],
+        ['liquidificador', 'Liquidificador', 250, 'resenha', '', '', true, 1, 70],
+        ['air-fryer', 'Air fryer', 450, 'resenha', '', '', true, 1, 80],
+        ['micro-ondas', 'Micro-ondas', 700, 'resenha', '', '', true, 1, 90],
+        ['aspirador', 'Aspirador', 600, 'resenha', '', '', true, 1, 100],
+        ['jogo-de-panelas', 'Jogo de panelas', 520, 'resenha', '', '', true, 1, 110],
+        ['geladeira', 'Geladeira', 2500, 'resenha', '', 'Cota única: a maior de todas', true, 1, 120],
+        ['maquina-de-lavar', 'Máquina de lavar', 2200, 'resenha', '', '', true, 1, 130],
+        ['sofa', 'Sofá', 1800, 'resenha', '', '', true, 1, 140],
+        ['colchao', 'Colchão', 1500, 'resenha', '', '', true, 1, 150],
+        ['passagem', 'Cota da passagem', 500, 'salvador', '', '', true, '', 160],
+        ['hospedagem', 'Cota da hospedagem', 800, 'salvador', '', '', true, '', 170],
+        ['passeio', 'Um passeio a dois', 300, 'salvador', '', '', true, '', 180],
+        ['jantar-especial', 'Um jantar especial', 400, 'salvador', '', '', true, '', 190],
+        ['lua-de-mel-livre', 'Cota livre da lua de mel', 200, 'salvador', '', 'Qualquer valor ajuda', true, '', 200],
     ];
 
     const aba = aba_(ABAS.PRESENTES);

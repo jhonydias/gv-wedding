@@ -6,7 +6,6 @@
  *
  * Nada de dado vindo da planilha entra por innerHTML: tudo por textContent.
  */
-import { faixaDe } from './faixa';
 import type { Faixa } from '../data/presentes';
 
 interface Pagamentos {
@@ -256,13 +255,13 @@ export function adminPresentes(): void {
             grupo.append(h, ul);
             lista.append(grupo);
         }
-        // Faixa desconhecida (editada à mão na planilha): não some da tela.
+        // Categoria desconhecida (editada à mão na planilha): não some da tela.
         const orfaos = itens.filter((p) => !FAIXAS.some((f) => f.id === p.faixa));
         if (orfaos.length) {
             const grupo = document.createElement('section');
             grupo.className = 'grupo';
             const h = document.createElement('h2');
-            h.textContent = 'Sem faixa (não aparecem no site)';
+            h.textContent = 'Sem categoria (não aparecem no site)';
             const ul = document.createElement('ul');
             ul.className = 'itens';
             for (const p of orfaos) ul.append(linha(p));
@@ -408,7 +407,7 @@ export function adminPresentes(): void {
             descricao: campo('descricao').value.trim(),
             // Valor livre é sempre sem limite de pessoas (o servidor recusa o contrário).
             cotas: campo('valor_livre').checked ? null : modo === 'um' ? 1 : modo === 'livre' ? null : nCotas,
-            luademel: campo('luademel').checked,
+            categoria: campo('categoria').value,
             publicar: campo('publicar').checked,
             valor_livre: campo('valor_livre').checked,
         };
@@ -440,6 +439,7 @@ export function adminPresentes(): void {
             ['imagem', d.imagem && !/^https:\/\/\S+$/i.test(d.imagem) ? 'O link da foto precisa começar com https://' : null],
             ['cotas', d.cotas !== null && (!Number.isInteger(d.cotas) || d.cotas < 1 || d.cotas > 50) ? 'Escolha de 1 a 50 pessoas.' : null],
             ['descricao', d.descricao.length > 140 ? 'Use no máximo 140 caracteres.' : null],
+            ['categoria', FAIXAS.some((f) => f.id === d.categoria) ? null : 'Escolha em que categoria o presente aparece.'],
         ];
         // Cotas abaixo do que já foi pago: o servidor recusa; aqui só antecipa.
         if (editando && d.cotas !== null && d.cotas < editando.pagamentos.confirmado) {
@@ -459,7 +459,7 @@ export function adminPresentes(): void {
         const out: string[] = [];
         if (!d.imagem) out.push('Sem foto, o presente aparece com o símbolo do casamento no lugar.');
         if (editando) {
-            const nova = Number.isInteger(d.valor) ? faixaDe(d.valor, d.luademel) : editando.faixa;
+            const nova = d.categoria || editando.faixa;
             if (nova !== editando.faixa) out.push(`Vai mudar de "${tituloFaixa(editando.faixa)}" para "${tituloFaixa(nova)}".`);
             if (editando.pagamentos.pendente > 0 && d.valor !== editando.valor) {
                 out.push('Tem reserva aguardando Pix com o valor antigo. Quem reservou pode pagar esse valor.');
@@ -480,11 +480,6 @@ export function adminPresentes(): void {
         const cotas = $('[data-previa-cotas]');
         cotas.hidden = !(d.cotas && d.cotas > 1);
         cotas.textContent = d.cotas && d.cotas > 1 ? `${d.cotas} cotas disponíveis` : '';
-
-        const ajuda = $('[data-faixa-ajuda]');
-        ajuda.textContent = Number.isInteger(d.valor) && d.valor > 0
-            ? `Vai aparecer em "${tituloFaixa(faixaDe(d.valor, d.luademel))}".`
-            : 'Em reais, sem centavos.';
 
         // Foto repetida: o erro da task 14 (a mesma foto em 20 presentes).
         const repetida = d.imagem
@@ -541,7 +536,7 @@ export function adminPresentes(): void {
             d.imagem !== editando.imagem ||
             d.descricao !== editando.descricao ||
             d.cotas !== editando.cotas ||
-            d.luademel !== (editando.faixa === 'luademel') ||
+            d.categoria !== editando.faixa ||
             d.publicar !== editando.ativo ||
             d.valor_livre !== Boolean(editando.valor_livre)
         );
@@ -553,15 +548,16 @@ export function adminPresentes(): void {
         campo('valor').value = p ? String(p.valor) : '';
         campo('imagem').value = p?.imagem ?? '';
         campo('descricao').value = p?.descricao ?? '';
-        campo('luademel').checked = p?.faixa === 'luademel';
+        // Categoria fora da lista (editada à mão na planilha) fica vazia: o select obriga a escolher.
+        campo('categoria').value = FAIXAS.some((f) => f.id === p?.faixa) ? p!.faixa : '';
         campo('publicar').checked = p ? p.ativo : true;
         campo('valor_livre').checked = Boolean(p?.valor_livre);
         const modo = !p || p.cotas === 1 ? 'um' : p.cotas === null ? 'livre' : 'varias';
         editor.querySelector<HTMLInputElement>(`[name="modo-cotas"][value="${modo}"]`)!.checked = true;
         campo('cotas').value = p && p.cotas && p.cotas > 1 ? String(p.cotas) : '3';
-        // Descrição ou lua de mel preenchidas: abre "Mais opções" para não esconder dado.
-        $<HTMLDetailsElement>('[data-mais]').open = Boolean(p && (p.descricao || p.faixa === 'luademel' || !p.ativo || p.valor_livre));
-        for (const n of ['nome', 'valor', 'imagem', 'cotas', 'descricao']) mostrarErro(n, null);
+        // Opção preenchida: abre "Mais opções" para não esconder dado.
+        $<HTMLDetailsElement>('[data-mais]').open = Boolean(p && (p.descricao || !p.ativo || p.valor_livre));
+        for (const n of ['nome', 'categoria', 'valor', 'imagem', 'cotas', 'descricao']) mostrarErro(n, null);
     }
 
     function limparRetorno(): void {

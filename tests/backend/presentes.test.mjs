@@ -13,9 +13,9 @@ const SENHA = 'senha-de-teste-do-ci';
 const base = () => {
     const a = criarAmbiente({
     presentes: [
-        ['toalhas', 'Jogo de toalhas', 120, 'lembranca', 'https://img/toalha.jpg', '', false, 1, 20],
-        ['vela-aromatica', 'Vela aromática', 95, 'lembranca', 'https://img/vela.jpg', '', true, 3, 30],
-        ['geladeira', 'Geladeira', 2500, 'grande', '', '', true, 1, 120],
+        ['toalhas', 'Jogo de toalhas', 120, 'gisele', 'https://img/toalha.jpg', '', false, 1, 20],
+        ['vela-aromatica', 'Vela aromática', 95, 'gisele', 'https://img/vela.jpg', '', true, 3, 30],
+        ['geladeira', 'Geladeira', 2500, 'victor', '', '', true, 1, 120],
     ],
     pagamentos: [
         ['p1', 'vela-aromatica', 'A', '', 95, 'confirmado', '', ''],
@@ -27,11 +27,11 @@ const base = () => {
     a.x.definirSenhaNoivos(SENHA);
     return a;
 };
-const cria = (a, extra) => a.post({ acao: 'criarPresente', senha: SENHA, nome: 'Cafeteira italiana', valor: 180, imagem: 'https://img/cafe.jpg', cotas: 1, ...extra });
+const cria = (a, extra) => a.post({ acao: 'criarPresente', senha: SENHA, nome: 'Cafeteira italiana', valor: 180, imagem: 'https://img/cafe.jpg', cotas: 1, categoria: 'resenha', ...extra });
 const lista = (a) => a.post({ acao: 'listarPresentes', senha: SENHA }).presentes;
 const linhasPresentes = (a) => a.sheets.Presentes.dados.length - 1;
 
-test('ping responde a versão atual', () => assert.equal(base().get('ping').versao, '22.1'));
+test('ping responde a versão atual', () => assert.equal(base().get('ping').versao, '22.2'));
 
 test('entrar certo / errado, sem senha no Log', () => {
     const a = base();
@@ -54,23 +54,35 @@ test('criar sem senha não grava', () => {
     assert.equal(linhasPresentes(a), 3);
 });
 
-test('criar: grava, deriva id/faixa/ordem, invalida cache', () => {
+test('criar: grava, deriva id/ordem, invalida cache', () => {
     const a = base();
     a.get('catalogo'); // aquece cache
     const r = cria(a, { pedido_id: 'p-1' });
     assert.equal(r.ok, true, JSON.stringify(r));
-    assert.equal(r.id, 'cafeteira-italiana'); assert.equal(r.faixa, 'casa');
+    assert.equal(r.id, 'cafeteira-italiana'); assert.equal(r.faixa, 'resenha');
     assert.equal(r.publicacao, 'agendada');
     const l = a.sheets.Presentes.dados.at(-1);
-    assert.equal(JSON.stringify(l), JSON.stringify(['cafeteira-italiana', 'Cafeteira italiana', 180, 'casa', 'https://img/cafe.jpg', '', true, 1, 130, false]));
+    assert.equal(JSON.stringify(l), JSON.stringify(['cafeteira-italiana', 'Cafeteira italiana', 180, 'resenha', 'https://img/cafe.jpg', '', true, 1, 130, false]));
     assert.ok(a.get('catalogo').presentes.some((p) => p.id === 'cafeteira-italiana'));
 });
 
-test('faixas nas fronteiras', () => {
+test('categoria é a escolhida, não depende do valor', () => {
     const a = base();
-    const f = (valor, luademel) => cria(a, { nome: 'Item ' + valor + String(luademel), valor, luademel }).faixa;
-    assert.equal(f(150), 'lembranca'); assert.equal(f(151), 'casa'); assert.equal(f(800), 'casa');
-    assert.equal(f(801), 'grande'); assert.equal(f(300, true), 'luademel');
+    assert.equal(cria(a, { nome: 'Barato', valor: 20, categoria: 'salvador' }).faixa, 'salvador');
+    assert.equal(cria(a, { nome: 'Caro', valor: 5000, categoria: ' Ruth ' }).faixa, 'ruth');
+});
+
+test('categoria fora da lista é recusada', () => {
+    const a = base();
+    assert.equal(cria(a, { categoria: 'casa' }).campo, 'categoria');
+    assert.equal(linhasPresentes(a), 3);
+});
+
+test('criar pelo painel antigo (sem categoria) pede para atualizar', () => {
+    const a = base();
+    const r = cria(a, { categoria: undefined, luademel: true });
+    assert.equal(r.ok, false); assert.match(r.msg, /Atualize a página/);
+    assert.equal(linhasPresentes(a), 3);
 });
 
 test('slug sem acento', () => assert.equal(cria(base(), { nome: 'Açúcar & Café' }).id, 'acucar-cafe'));
@@ -147,7 +159,7 @@ const edita = (a, id, mud, pedido) => {
     const p = lista(a).find((x) => x.id === id);
     return a.post({
         acao: 'editarPresente', senha: SENHA, pedido_id: pedido, id, versao: p.versao,
-        nome: p.nome, valor: p.valor, luademel: p.faixa === 'luademel', imagem: p.imagem,
+        nome: p.nome, valor: p.valor, categoria: p.faixa, imagem: p.imagem,
         descricao: p.descricao, cotas: p.cotas, publicar: p.ativo, ...mud,
     });
 };
@@ -192,11 +204,46 @@ test('cotas abaixo do pago recusadas; avisos de pendente', () => {
     assert.equal(r2.ok, true); assert.ok(r2.avisos.some((x) => x.includes('valor antigo')));
 });
 
-test('mudança de faixa vai para o fim', () => {
+test('mudança de categoria vai para o fim', () => {
+    const a = base();
+    const r = edita(a, 'toalhas', { categoria: 'victor' });
+    assert.equal(r.faixa, 'victor');
+    assert.equal(a.sheets.Presentes.dados[1][8], 130);
+});
+
+test('mudar o valor não muda a categoria', () => {
     const a = base();
     const r = edita(a, 'toalhas', { valor: 900 });
-    assert.equal(r.faixa, 'grande');
-    assert.equal(a.sheets.Presentes.dados[1][8], 130);
+    assert.equal(r.faixa, 'gisele');
+    assert.equal(a.sheets.Presentes.dados[1][8], 20);
+});
+
+test('editar pelo painel antigo (sem categoria) mantém a categoria', () => {
+    const a = base();
+    const r = edita(a, 'toalhas', { categoria: undefined, luademel: true, nome: 'Toalhas novas' });
+    assert.equal(r.ok, true, JSON.stringify(r)); assert.equal(r.faixa, 'gisele');
+    assert.equal(a.sheets.Presentes.dados[1][3], 'gisele');
+});
+
+test('migrarCategorias: pelo id, idempotente, sem mexer em pagamento', () => {
+    const a = criarAmbiente({
+        presentes: [
+            ['jogo-de-cama', 'Sessão de massagem', 220, 'casa', '', '', true, '', 60],
+            ['conserto-da-poltrona-que-a-ruth-comeu', 'Conserto da poltrona', 350, 'casa', '', '', true, '', 330],
+            ['fora-da-lista', 'Outro', 100, 'lembranca', '', '', true, '', 400],
+        ],
+        pagamentos: [['p1', 'jogo-de-cama', 'A', '', 220, 'confirmado', '', '']],
+    });
+    const r = a.x.migrarCategorias();
+    assert.match(r, /^4 célula/); assert.match(r, /não encontrados: tabua-de-servir/);
+    const d = a.sheets.Presentes.dados;
+    assert.deepEqual(
+        [d[1][0], d[1][1], d[1][3], d[2][3], d[2][8], d[3][3]],
+        ['jogo-de-cama', 'Sessão de massagem de casal pós-maratona de trio elétrico', 'salvador', 'resenha', 375, 'lembranca'],
+    );
+    assert.equal(a.sheets.Pagamentos.dados[1][1], 'jogo-de-cama');
+    assert.match(a.x.migrarCategorias(), /^0 célula/);
+    assert.equal(a.get('catalogo').presentes.find((p) => p.id === 'jogo-de-cama').faixa, 'salvador');
 });
 
 test('tirar do site', () => {
@@ -250,3 +297,9 @@ test('JSON inválido no POST não quebra', () => {
     assert.equal(r.ok, false);
 });
 
+
+test('nome aceita até 100 letras', () => {
+    const a = base();
+    assert.equal(cria(a, { nome: 'x'.repeat(100) }).ok, true);
+    assert.equal(cria(a, { nome: 'y'.repeat(101) }).campo, 'nome');
+});

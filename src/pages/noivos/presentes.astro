@@ -94,8 +94,17 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                     <div class="editor__campos">
                         <div class="campo">
                             <label for="f-nome">Nome do presente</label>
-                            <input id="f-nome" name="nome" type="text" maxlength="60" required aria-describedby="erro-nome" />
+                            <input id="f-nome" name="nome" type="text" maxlength="100" required aria-describedby="erro-nome" />
                             <p class="campo__erro" id="erro-nome" hidden></p>
+                        </div>
+
+                        <div class="campo">
+                            <label for="f-categoria">Categoria</label>
+                            <select id="f-categoria" name="categoria" required aria-describedby="erro-categoria">
+                                <option value="">Escolha uma categoria</option>
+                                {FAIXAS.map((f) => <option value={f.id}>{f.titulo}</option>)}
+                            </select>
+                            <p class="campo__erro" id="erro-categoria" hidden></p>
                         </div>
 
                         <div class="campo">
@@ -109,7 +118,7 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                                 required
                                 aria-describedby="ajuda-valor erro-valor"
                             />
-                            <p class="campo__ajuda" id="ajuda-valor" data-faixa-ajuda>
+                            <p class="campo__ajuda" id="ajuda-valor">
                                 Em reais, sem centavos.
                             </p>
                             <p class="campo__erro" id="erro-valor" hidden></p>
@@ -162,7 +171,6 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                                 <input id="f-descricao" name="descricao" type="text" maxlength="140" aria-describedby="erro-descricao" />
                                 <p class="campo__erro" id="erro-descricao" hidden></p>
                             </div>
-                            <label class="radio"><input type="checkbox" name="luademel" /> É para a lua de mel</label>
                             <label class="radio"><input type="checkbox" name="publicar" checked /> Mostrar no site</label>
                             <label class="radio">
                                 <input type="checkbox" name="valor_livre" /> O convidado escolhe o valor (o valor acima vira o mínimo)
@@ -259,7 +267,8 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
     }
     input[type='text'],
     input[type='url'],
-    input[type='password'] {
+    input[type='password'],
+    select {
         inline-size: 100%;
         min-block-size: 44px;
         padding: 0.6rem 0.75rem;
@@ -269,7 +278,8 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
         color: var(--texto);
         font-size: 1rem; /* 16px: abaixo disso o iOS dá zoom ao focar */
     }
-    input[aria-invalid='true'] {
+    input[aria-invalid='true'],
+    select[aria-invalid='true'] {
         border-color: var(--laranja-texto);
         border-width: 2px;
     }

@@ -73,7 +73,6 @@ const itens = configurado
                 <h2 class="faixa__titulo" id={`faixa-${faixa.id}`}>
                     {faixa.titulo}
                 </h2>
-                <p class="faixa__apoio">{faixa.apoio}</p>
 
                 <ul class="grade">
                     {daFaixa.map((p, i) => (
@@ -228,14 +227,8 @@ const itens = configurado
         margin-block-start: var(--e-5);
     }
     .faixa__titulo {
+        margin-block-end: var(--e-3);
         font-size: var(--t-xl);
-    }
-    .faixa__apoio {
-        margin-block: 0.2em var(--e-3);
-        font-size: var(--t-xs);
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--texto-suave);
     }
 
     /*

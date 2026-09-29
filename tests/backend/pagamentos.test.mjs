@@ -13,8 +13,8 @@ const PRESENTES = [
     // id, nome, valor, faixa, imagem, descricao, ativo, cotas, ordem, valor_livre
     ['geladeira', 'Geladeira', 900, 'grande', 'https://img/geladeira.jpg', '', true, 1, 10, false],
     ['vela', 'Vela aromática', 95, 'lembranca', '', '', true, 3, 20, false],
-    ['lua-de-mel', 'Cota da lua de mel', 200, 'luademel', '', '', true, '', 30, false],
-    ['livre', 'Contribuição livre', 50, 'luademel', '', '', true, '', 40, true],
+    ['lua-de-mel', 'Cota da lua de mel', 200, 'salvador', '', '', true, '', 30, false],
+    ['livre', 'Contribuição livre', 50, 'salvador', '', '', true, '', 40, true],
     ['fora', 'Fora do site', 100, 'casa', '', '', false, 1, 50, false],
 ];
 

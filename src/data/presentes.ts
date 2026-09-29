@@ -13,7 +13,13 @@
  */
 import catalogo from './catalogo.json';
 
-export type Faixa = 'lembranca' | 'casa' | 'grande' | 'luademel';
+/**
+ * Categoria do presente. O nome `Faixa` e a coluna `faixa` da planilha ficaram da época
+ * em que ela era derivada do valor (task 17). Desde 29/09/2026 são as categorias escolhidas
+ * pelos noivos no painel. Os ids moram na planilha: mudou aqui, muda no `CATEGORIAS` do
+ * `scripts/Code.gs` e no `tools/catalogo.mjs`.
+ */
+export type Faixa = 'salvador' | 'gisele' | 'victor' | 'ruth' | 'resenha';
 
 export interface Presente {
     /** Slug estável. Vira o txid do Pix e aparece no extrato dos noivos. */
@@ -52,11 +58,13 @@ interface ItemCatalogo {
     valor_livre?: boolean;
 }
 
-export const FAIXAS: ReadonlyArray<{ id: Faixa; titulo: string; apoio: string }> = [
-    { id: 'lembranca', titulo: 'Lembranças', apoio: 'Até R$ 150' },
-    { id: 'casa', titulo: 'Para a casa', apoio: 'De R$ 150 a R$ 800' },
-    { id: 'grande', titulo: 'Os grandes', apoio: 'Acima de R$ 800' },
-    { id: 'luademel', titulo: 'Lua de mel', apoio: 'Cotas de viagem' },
+/** Na ordem em que aparecem na página. */
+export const FAIXAS: ReadonlyArray<{ id: Faixa; titulo: string }> = [
+    { id: 'salvador', titulo: 'Lua de mel em Salvador' },
+    { id: 'gisele', titulo: 'Gisele' },
+    { id: 'victor', titulo: 'Victor' },
+    { id: 'ruth', titulo: 'Ruth' },
+    { id: 'resenha', titulo: 'Resenha, vida a dois e sobrevivência pós casamento' },
 ];
 
 /**
@@ -72,10 +80,6 @@ export const PIX = {
     nome: import.meta.env.PUBLIC_PIX_NOME ?? '',
     cidade: import.meta.env.PUBLIC_PIX_CIDADE ?? 'BELEM',
 } as const;
-
-/** Task 17: a faixa é derivada do valor. Mora em `lib/faixa.ts` para a tela dos noivos
- * não levar o catálogo inteiro no bundle. */
-export { faixaDe } from '../lib/faixa';
 
 const ehFaixa = (v: string): v is Faixa =>
     FAIXAS.some((f) => f.id === v);

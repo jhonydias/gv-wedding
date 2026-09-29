@@ -41,7 +41,7 @@ function fetchSincrono(url, opts = {}) {
 const PRESENTES = [
     ['geladeira', 'Geladeira', 900, 'grande', '', '', true, 1, 10, false],
     ['vela', 'Vela aromática', 95, 'lembranca', '', '', true, 3, 20, false],
-    ['livre', 'Contribuição livre', 50, 'luademel', '', '', true, '', 40, true],
+    ['livre', 'Contribuição livre', 50, 'salvador', '', '', true, '', 40, true],
 ];
 
 function ambiente(pagamentos = []) {

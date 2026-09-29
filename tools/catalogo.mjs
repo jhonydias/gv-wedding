@@ -90,7 +90,27 @@ if (!corpo.ok || !Array.isArray(corpo.presentes)) {
 }
 
 // Valida item a item. Uma linha torta na planilha não pode virar card quebrado.
-const FAIXAS = new Set(['lembranca', 'casa', 'grande', 'luademel']);
+// Categorias: espelha `FAIXAS` de src/data/presentes.ts e `CATEGORIAS` do Code.gs.
+const FAIXAS = new Set(['salvador', 'gisele', 'victor', 'ruth', 'resenha']);
+
+/**
+ * Presente JÁ PUBLICADO (está no JSON versionado) chegando com categoria desconhecida não
+ * é descartado: o script para e o deploy segue com o JSON versionado. Sem isso, trocar as
+ * categorias num lado só (planilha ou código) tiraria a lista inteira do ar. Presente novo
+ * com categoria torta continua só descartado, como qualquer linha inválida.
+ */
+const publicados = new Set(
+    fs.existsSync(DESTINO) ? JSON.parse(fs.readFileSync(DESTINO, 'utf8')).map((p) => p.id) : [],
+);
+const sumiriam = corpo.presentes.filter((p) => publicados.has(p.id) && !FAIXAS.has(p.faixa));
+if (sumiriam.length) {
+    console.error(
+        `${sumiriam.length} presente(s) publicado(s) com categoria desconhecida. O ${DESTINO} atual foi mantido:\n` +
+            sumiriam.map((p) => `  ${p.id}: "${p.faixa}"`).join('\n'),
+    );
+    process.exit(1);
+}
+
 const problemas = [];
 const presentes = corpo.presentes.filter((p, i) => {
     const erro =
