@@ -1,6 +1,7 @@
 ---
 /**
  * Área dos noivos: criar, editar e apagar presentes. Task 17.
+ * Quem deu o quê saiu daqui para /noivos/recebidos (task 24).
  *
  * A página é pública (o site é estático); a proteção é a senha, conferida no Apps Script
  * a cada chamada. Fora da nav, fora do sitemap, `noindex`. NÃO listar no robots.txt:
@@ -9,6 +10,8 @@
  * Todo o comportamento está em `src/lib/admin-presentes.ts`, que só carrega aqui.
  */
 import Base from '../../layouts/Base.astro';
+import Abas from '../../components/noivos/Abas.astro';
+import Entrar from '../../components/noivos/Entrar.astro';
 import { FAIXAS } from '../../data/presentes';
 import amp from '../../assets/marca/e-comercial.svg?raw';
 
@@ -31,6 +34,8 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
 
     <section class="secao">
         <div class="wrap" data-admin data-endpoint={endpoint} data-faixas={faixas}>
+            <Abas atual="presentes" />
+
             {
                 !endpoint && (
                     <p class="alerta" role="alert">
@@ -41,24 +46,7 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
             }
 
             <!-- Passo 1: senha -->
-            <!-- method="dialog": fora de um <dialog>, o envio não navega. Sem isso, um toque
-                 antes de o script carregar faria GET com ?senha=... na URL. -->
-            <form class="entrar" data-entrar method="dialog" novalidate>
-                <div class="campo">
-                    <label for="senha">Senha dos noivos</label>
-                    <input
-                        id="senha"
-                        name="senha"
-                        type="password"
-                        autocomplete="current-password"
-                        autocapitalize="none"
-                        required
-                        aria-describedby="erro-senha"
-                    />
-                    <p class="campo__erro" id="erro-senha" role="alert" hidden></p>
-                </div>
-                <button type="submit" class="botao botao--primario">Entrar</button>
-            </form>
+            <Entrar />
 
             <!-- Passo 2: lista -->
             <div class="painel" data-painel hidden>
@@ -66,24 +54,12 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
                     <button type="button" class="botao botao--primario" data-novo>
                         Adicionar presente
                     </button>
-                    <button type="button" class="botao botao--fantasma" data-ver-recebidos>
-                        Presentes recebidos
-                    </button>
                     <button type="button" class="botao botao--fantasma" data-recarregar>
                         Atualizar lista
                     </button>
                 </div>
                 <div class="mensagem" data-mensagem role="status" tabindex="-1" hidden></div>
                 <div data-lista aria-live="polite"></div>
-            </div>
-
-            <!-- Task 22 §8: a lista dos cartões de agradecimento -->
-            <div class="recebidos" data-recebidos hidden>
-                <div class="painel__topo">
-                    <button type="button" class="botao botao--fantasma" data-voltar-lista>Voltar para a lista</button>
-                </div>
-                <h2 class="recebidos__titulo" tabindex="-1" data-recebidos-titulo>Presentes recebidos</h2>
-                <div data-recebidos-lista aria-live="polite"></div>
             </div>
 
             <!-- Passo 3: formulário (criar e editar) -->
@@ -241,12 +217,6 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
         color: var(--texto-suave);
     }
 
-    .entrar {
-        display: grid;
-        gap: var(--e-3);
-        max-inline-size: 22rem;
-    }
-
     .campo {
         display: grid;
         gap: 0.35rem;
@@ -267,7 +237,6 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
     }
     input[type='text'],
     input[type='url'],
-    input[type='password'],
     select {
         inline-size: 100%;
         min-block-size: 44px;
@@ -408,42 +377,6 @@ const faixas = JSON.stringify(FAIXAS.map((f) => ({ id: f.id, titulo: f.titulo })
         border: 1px solid var(--borda);
         border-radius: 999px;
         font-size: var(--t-xs);
-    }
-
-    /* --- Recebidos (task 22) --- */
-    .recebidos__titulo {
-        font-size: var(--t-xl);
-        margin-block-end: var(--e-2);
-    }
-    .recebidos :global(.recebido) {
-        display: grid;
-        gap: 0.25rem;
-        padding: var(--e-2);
-        background: var(--bg-alt);
-        border: 1px solid var(--borda);
-        border-radius: var(--raio-produto);
-    }
-    .recebidos :global(.itens) {
-        list-style: none;
-        margin: var(--e-2) 0 0;
-        padding: 0;
-        display: grid;
-        gap: var(--e-1);
-    }
-    .recebidos :global(.item__nome) {
-        font-weight: 600;
-    }
-    .recebidos :global(.item__info) {
-        font-size: var(--t-xs);
-        color: var(--texto-suave);
-    }
-    .recebidos :global(.recebido__recado) {
-        font-style: italic;
-    }
-    .recebidos :global(.recebido__alerta) {
-        font-size: var(--t-sm);
-        font-weight: 600;
-        color: var(--laranja-texto);
     }
 
     /* --- Editor --- */

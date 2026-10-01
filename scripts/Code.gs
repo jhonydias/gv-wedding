@@ -227,7 +227,7 @@ function doGet(e) {
             case 'ping':
                 return json_({
                     ok: true,
-                    versao: '22.2',
+                    versao: '24.0',
                     hora: new Date().toISOString(),
                     pagamento: modoPagamento_(config_()),
                     mp: mpToken_() ? (PropertiesService.getScriptProperties().getProperty('mp_ambiente') || '?') : 'sem_token',
@@ -576,6 +576,7 @@ function reservar_(bruto) {
 const ACOES_ADMIN = [
     'entrar', 'listarPresentes', 'criarPresente', 'editarPresente', 'apagarPresente',
     'listarRecebidos', // task 22 §8
+    'listarConvidados', // task 24
 ];
 
 /**
@@ -685,6 +686,8 @@ function admin_(d) {
             return { ok: true, presentes: listarPresentes_() };
         case 'listarRecebidos':
             return { ok: true, recebidos: listarRecebidos_() };
+        case 'listarConvidados':
+            return listarConvidados_();
     }
 
     let r;
@@ -1746,28 +1749,127 @@ function avisarPresente_(l) {
 
 // ---------------------------------------------------------------- área dos noivos
 
-/** Lista dos cartões de agradecimento, e os alertas no topo (task 22 §8). */
+/** Data de célula (Date ou texto) em ISO; vazia ou ilegível vira ''. */
+function isoOuVazio_(v) {
+    if (v === '' || v === null || v === undefined) return '';
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+/**
+ * Tela /noivos/recebidos (task 22 §8, ampliada na task 24): quem deu o quê, e os alertas.
+ *
+ * Entram os confirmados, os estornados, qualquer linha com alerta e o Pix manual ainda
+ * `pendente` (alguém avisou que pagou e falta conferir no extrato). O checkout do Mercado
+ * Pago `pendente` NÃO entra: é só alguém com a página de pagamento aberta.
+ */
 function listarRecebidos_() {
-    const nomes = {};
-    lerAba_(ABAS.PRESENTES).forEach(function (p) { nomes[String(p.id).trim()] = String(p.nome); });
+    const presentes = {};
+    lerAba_(ABAS.PRESENTES).forEach(function (p) {
+        presentes[String(p.id).trim()] = { nome: String(p.nome), imagem: String(p.imagem || '') };
+    });
     return lerAba_(ABAS.PAGAMENTOS)
-        .filter(function (l) { return String(l.status) === 'confirmado' || String(l.alerta || '') !== '' || String(l.status) === 'estornado'; })
+        .filter(function (l) {
+            const st = String(l.status).toLowerCase();
+            return st === 'confirmado' || st === 'estornado' || String(l.alerta || '') !== '' ||
+                (st === 'pendente' && String(l.canal || 'pix_manual') === 'pix_manual');
+        })
         .map(function (l) {
+            const pid = String(l.presente_id).trim();
+            const p = presentes[pid];
             return {
-                presente: nomes[String(l.presente_id)] || String(l.presente_id),
+                presente_id: pid,
+                presente: p ? p.nome : pid,
+                imagem: p ? p.imagem : '',
                 nome: String(l.nome),
                 contato: String(l.contato || ''),
                 recado: String(l.recado || ''),
                 valor: Number(l.valor) || 0,
-                status: String(l.status),
+                status: String(l.status).toLowerCase(),
                 canal: String(l.canal || ''),
                 metodo: String(l.metodo || ''),
                 parcelas: Number(l.parcelas) || null,
-                quando: l.confirmado_em ? new Date(l.confirmado_em).toISOString() : (l.criado_em ? new Date(l.criado_em).toISOString() : ''),
+                quando: isoOuVazio_(l.confirmado_em) || isoOuVazio_(l.criado_em),
                 alerta: String(l.alerta || ''),
             };
         })
         .sort(function (a, b) { return String(b.quando).localeCompare(String(a.quando)); });
+}
+
+/** Nome ou contato para comparar: sem acento, minúsculo, espaços únicos. */
+function chaveTexto_(v) {
+    return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/** E-mail em minúsculas; telefone só com os dígitos. "(91) 99999-0000" = "91999990000". */
+function chaveContato_(v) {
+    const s = chaveTexto_(v);
+    return s.indexOf('@') !== -1 ? s : s.replace(/\D/g, '');
+}
+
+/**
+ * Tela /noivos/convidados (task 24). Uma entrada por pessoa (nome + contato): o `rsvp_` só
+ * atualiza a própria linha nas primeiras 24 h, e depois disso uma nova resposta da mesma
+ * pessoa vira linha nova. A resposta que vale é a mais recente; a tela mostra quantas vezes
+ * a pessoa respondeu e o que ela tinha dito antes, se mudou.
+ *
+ * Só leitura. Contato e recado só saem daqui com a senha (admin_).
+ */
+function listarConvidados_() {
+    const pessoas = {};
+    const ordem = [];
+    lerAba_(ABAS.CONVIDADOS).forEach(function (l) {
+        const nome = String(l.nome || '').trim();
+        if (!nome) return;
+        const bruto = chaveTexto_(l.comparece);
+        const comparece = bruto === 'sim' ? 'sim' : bruto === 'nao' ? 'nao' : '';
+        const atualizado = isoOuVazio_(l.atualizado_em) || isoOuVazio_(l.criado_em);
+        const item = {
+            protocolo: String(l.protocolo || ''),
+            nome: nome,
+            contato: String(l.contato || '').trim(),
+            comparece: comparece,
+            pessoas: comparece === 'sim' ? Math.max(1, Number(l.total_pessoas) || 1) : 0,
+            recado: String(l.recado || ''),
+            restricao: String(l.restricao || ''),
+            criado_em: isoOuVazio_(l.criado_em),
+            atualizado_em: atualizado,
+            respostas: 1,
+            antes: '',
+            _linha: l._linha,
+        };
+        const chave = chaveTexto_(nome) + '|' + chaveContato_(l.contato);
+        const ja = pessoas[chave];
+        if (!ja) {
+            pessoas[chave] = item;
+            ordem.push(chave);
+            return;
+        }
+        // A mais recente vale. Empate (ou data ilegível): a linha de baixo, que é a mais nova.
+        const novo = (item.atualizado_em || '') > (ja.atualizado_em || '') ||
+            ((item.atualizado_em || '') === (ja.atualizado_em || '') && item._linha > ja._linha);
+        const atual = novo ? item : ja;
+        const velho = novo ? ja : item;
+        atual.respostas = ja.respostas + 1;
+        // `antes` = a última resposta diferente da que vale, se houver.
+        atual.antes = velho.comparece !== atual.comparece ? velho.comparece : (velho.antes || ja.antes);
+        if (atual.antes === atual.comparece) atual.antes = '';
+        pessoas[chave] = atual;
+    });
+
+    const convidados = ordem.map(function (k) {
+        const c = pessoas[k];
+        delete c._linha;
+        return c;
+    }).sort(function (a, b) { return String(b.atualizado_em).localeCompare(String(a.atualizado_em)); });
+
+    const cfg = config_();
+    return {
+        ok: true,
+        convidados: convidados,
+        prazo: isoOuVazio_(cfg.rsvp_ate),
+        encerrado: prazoEncerrado_(cfg),
+    };
 }
 
 // ---------------------------------------------------------------- operação (editor)

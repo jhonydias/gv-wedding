@@ -1,0 +1,126 @@
+---
+/**
+ * Área dos noivos: presentes recebidos e quem deu. Task 24 (amplia a lista da task 22 §8,
+ * que morava dentro de /noivos/presentes).
+ *
+ * Só leitura. A proteção é a senha, conferida no Apps Script a cada chamada
+ * (`listarRecebidos`). Fora da nav, fora do sitemap, `noindex`.
+ *
+ * O comportamento está em `src/lib/admin-recebidos.ts`, que só carrega aqui.
+ */
+import Base from '../../layouts/Base.astro';
+import Abas from '../../components/noivos/Abas.astro';
+import Entrar from '../../components/noivos/Entrar.astro';
+import amp from '../../assets/marca/e-comercial.svg?raw';
+import '../../styles/noivos.css';
+
+const endpoint = import.meta.env.PUBLIC_BACKEND_URL ?? '';
+---
+
+<Base
+    titulo="Área dos noivos · Presentes recebidos"
+    descricao="Presentes recebidos por Gisele e Victor."
+    atual="/noivos/recebidos"
+    naoIndexar
+>
+    <header class="nv-cabeca inverso">
+        <div class="wrap">
+            <h1>Presentes recebidos</h1>
+            <p class="nv-cabeca__apoio">Área dos noivos</p>
+        </div>
+    </header>
+
+    <section class="nv-secao">
+        <div class="wrap" data-noivos data-endpoint={endpoint}>
+            <Abas atual="recebidos" />
+
+            {
+                !endpoint && (
+                    <p class="nv-erro" role="alert">
+                        <strong>Endpoint não configurado.</strong> Defina <code>PUBLIC_BACKEND_URL</code> no
+                        ambiente.
+                    </p>
+                )
+            }
+
+            <Entrar />
+
+            <div data-conteudo hidden>
+                <!-- Símbolo do casamento no lugar da foto que falta (o mesmo dos cards). -->
+                <template data-marca><span class="nv-foto" aria-hidden="true" set:html={amp} /></template>
+
+                <dl class="nv-resumo" aria-label="Resumo dos presentes">
+                    <div class="nv-resumo--acento">
+                        <dt>Total recebido</dt>
+                        <dd data-total="valor">R$ 0</dd>
+                        <dd class="nv-resumo__extra">antes das taxas</dd>
+                    </div>
+                    <div>
+                        <dt>Presentes</dt>
+                        <dd data-total="presentes">0</dd>
+                    </div>
+                    <div>
+                        <dt>Pessoas que deram</dt>
+                        <dd data-total="pessoas">0</dd>
+                    </div>
+                    <div>
+                        <dt>Pedem atenção</dt>
+                        <dd data-total="atencao">0</dd>
+                    </div>
+                </dl>
+
+                <!-- Alertas, estornos e Pix a conferir: o que pede uma ação dos noivos. -->
+                <section class="nv-bloco" data-atencao aria-labelledby="titulo-atencao" hidden>
+                    <h2 class="nv-bloco__titulo" id="titulo-atencao">Pedem atenção</h2>
+                    <p class="nv-bloco__apoio">O que precisa de uma ação de vocês. Só entra no total o que já está confirmado.</p>
+                    <div data-atencao-lista></div>
+                </section>
+
+                <section class="nv-bloco" aria-labelledby="titulo-recebidos">
+                    <h2 class="nv-bloco__titulo" id="titulo-recebidos">Quem deu o quê</h2>
+
+                    <form class="nv-barra" data-barra role="search" method="dialog" novalidate>
+                        <div class="nv-campo">
+                            <label for="busca">Buscar</label>
+                            <input
+                                id="busca"
+                                name="busca"
+                                type="search"
+                                autocomplete="off"
+                                placeholder="Nome, presente ou recado"
+                                data-busca
+                            />
+                        </div>
+                        <div class="nv-campo">
+                            <label for="ordem">Ordenar por</label>
+                            <select id="ordem" name="ordem" data-ordem>
+                                <option value="recentes">Mais recentes</option>
+                                <option value="antigos">Mais antigos</option>
+                                <option value="valor">Maior valor</option>
+                                <option value="nome">Nome de quem deu (A a Z)</option>
+                            </select>
+                        </div>
+                        <fieldset class="nv-filtros">
+                            <legend>Ver</legend>
+                            <label><input type="radio" name="vista" value="pessoa" checked /> <span>Por pessoa</span></label>
+                            <label><input type="radio" name="vista" value="presente" /> <span>Por presente</span></label>
+                        </fieldset>
+                        <div class="nv-acoes">
+                            <button type="button" class="botao botao--fantasma" data-baixar>Baixar planilha</button>
+                            <button type="button" class="botao botao--fantasma" data-atualizar>Atualizar</button>
+                        </div>
+                    </form>
+
+                    <p class="nv-mensagem" data-mensagem role="status" hidden></p>
+                    <p class="nv-estado" data-estado aria-live="polite"></p>
+                    <div data-lista></div>
+                </section>
+            </div>
+        </div>
+    </section>
+</Base>
+
+<script>
+    import { adminRecebidos } from '../../lib/admin-recebidos';
+    adminRecebidos();
+</script>

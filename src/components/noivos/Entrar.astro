@@ -1,0 +1,68 @@
+---
+/**
+ * Senha dos noivos (task 24). Mesmo formulário da task 17, agora compartilhado entre as
+ * telas da área dos noivos. O comportamento está em `iniciarArea()` (src/lib/noivos.ts) e
+ * em `admin-presentes.ts`, que procuram `[data-entrar]`, `#senha` e `[data-erro-senha]`.
+ */
+---
+
+<!-- method="dialog": fora de um <dialog>, o envio não navega. Sem isso, um toque antes de o
+     script carregar faria GET com ?senha=... na URL. -->
+<form class="entrar" data-entrar method="dialog" novalidate>
+    <div class="campo">
+        <label for="senha">Senha dos noivos</label>
+        <input
+            id="senha"
+            name="senha"
+            type="password"
+            autocomplete="current-password"
+            autocapitalize="none"
+            required
+            aria-describedby="erro-senha"
+        />
+        <p class="campo__erro" id="erro-senha" data-erro-senha role="alert" hidden></p>
+    </div>
+    <button type="submit" class="botao botao--primario">Entrar</button>
+</form>
+
+<style>
+    .entrar {
+        display: grid;
+        gap: var(--e-3);
+        max-inline-size: 22rem;
+    }
+    .entrar[hidden] {
+        display: none;
+    }
+    .campo {
+        display: grid;
+        gap: 0.35rem;
+    }
+    label {
+        font-size: var(--t-sm);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+    input {
+        inline-size: 100%;
+        min-block-size: 44px;
+        padding: 0.6rem 0.75rem;
+        background: var(--creme);
+        border: 1px solid var(--borda);
+        border-radius: var(--raio);
+        color: var(--texto);
+        font-size: 1rem; /* 16px: abaixo disso o iOS dá zoom ao focar */
+    }
+    input[aria-invalid='true'] {
+        border-color: var(--laranja-texto);
+        border-width: 2px;
+    }
+    .campo__erro {
+        font-size: var(--t-xs);
+        font-weight: 600;
+        color: var(--laranja-texto);
+    }
+    .campo__erro[hidden] {
+        display: none;
+    }
+</style>

@@ -1,0 +1,117 @@
+---
+/**
+ * Área dos noivos: quem confirmou presença. Task 24.
+ *
+ * Só leitura. A página é pública (o site é estático); a proteção é a senha, conferida no
+ * Apps Script a cada chamada (`listarConvidados`). Fora da nav, fora do sitemap, `noindex`.
+ * NÃO listar no robots.txt: `Disallow` publicaria o endereço.
+ *
+ * O comportamento está em `src/lib/admin-convidados.ts`, que só carrega aqui.
+ */
+import Base from '../../layouts/Base.astro';
+import Abas from '../../components/noivos/Abas.astro';
+import Entrar from '../../components/noivos/Entrar.astro';
+import '../../styles/noivos.css';
+
+const endpoint = import.meta.env.PUBLIC_BACKEND_URL ?? '';
+---
+
+<Base
+    titulo="Área dos noivos · Convidados"
+    descricao="Confirmações de presença no casamento de Gisele e Victor."
+    atual="/noivos/convidados"
+    naoIndexar
+>
+    <header class="nv-cabeca inverso">
+        <div class="wrap">
+            <h1>Convidados</h1>
+            <p class="nv-cabeca__apoio">Área dos noivos</p>
+        </div>
+    </header>
+
+    <section class="nv-secao">
+        <div class="wrap" data-noivos data-endpoint={endpoint}>
+            <Abas atual="convidados" />
+
+            {
+                !endpoint && (
+                    <p class="nv-erro" role="alert">
+                        <strong>Endpoint não configurado.</strong> Defina <code>PUBLIC_BACKEND_URL</code> no
+                        ambiente.
+                    </p>
+                )
+            }
+
+            <Entrar />
+
+            <div data-conteudo hidden>
+                <dl class="nv-resumo" aria-label="Resumo das respostas">
+                    <div>
+                        <dt>Vão</dt>
+                        <dd data-total="vai">0</dd>
+                        <dd class="nv-resumo__extra" data-total="pessoas" hidden></dd>
+                    </div>
+                    <div>
+                        <dt>Não vão</dt>
+                        <dd data-total="nao">0</dd>
+                    </div>
+                    <div>
+                        <dt>Respostas</dt>
+                        <dd data-total="todos">0</dd>
+                    </div>
+                    <div class="nv-resumo--acento">
+                        <dt>Prazo para confirmar</dt>
+                        <dd data-total="prazo">…</dd>
+                        <dd class="nv-resumo__extra" data-total="prazo-extra" hidden></dd>
+                    </div>
+                </dl>
+
+                <form class="nv-barra" data-barra role="search" method="dialog" novalidate>
+                    <div class="nv-campo">
+                        <label for="busca">Buscar</label>
+                        <input
+                            id="busca"
+                            name="busca"
+                            type="search"
+                            autocomplete="off"
+                            placeholder="Nome, contato, recado ou GV-0001"
+                            data-busca
+                        />
+                    </div>
+                    <div class="nv-campo">
+                        <label for="ordem">Ordenar por</label>
+                        <select id="ordem" name="ordem" data-ordem>
+                            <option value="recentes">Respostas mais recentes</option>
+                            <option value="antigas">Respostas mais antigas</option>
+                            <option value="nome">Nome (A a Z)</option>
+                        </select>
+                    </div>
+                    <fieldset class="nv-filtros" data-filtros>
+                        <legend>Mostrar</legend>
+                        <label><input type="radio" name="filtro" value="todos" checked /> <span>Todos</span></label>
+                        <label><input type="radio" name="filtro" value="vai" /> <span>Vão</span></label>
+                        <label><input type="radio" name="filtro" value="nao" /> <span>Não vão</span></label>
+                        <label><input type="radio" name="filtro" value="recado" /> <span>Com recado</span></label>
+                        <label data-filtro-mudou hidden>
+                            <input type="radio" name="filtro" value="mudou" /> <span>Mudaram a resposta</span>
+                        </label>
+                    </fieldset>
+                    <div class="nv-acoes">
+                        <button type="button" class="botao botao--fantasma" data-baixar>Baixar planilha</button>
+                        <button type="button" class="botao botao--fantasma" data-copiar>Copiar nomes de quem vai</button>
+                        <button type="button" class="botao botao--fantasma" data-atualizar>Atualizar</button>
+                    </div>
+                </form>
+
+                <p class="nv-mensagem" data-mensagem role="status" hidden></p>
+                <p class="nv-estado" data-estado aria-live="polite"></p>
+                <div data-lista></div>
+            </div>
+        </div>
+    </section>
+</Base>
+
+<script>
+    import { adminConvidados } from '../../lib/admin-convidados';
+    adminConvidados();
+</script>

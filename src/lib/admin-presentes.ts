@@ -1,5 +1,6 @@
 /**
  * Área dos noivos: criar, editar e apagar presentes. Task 17.
+ * Quem deu o quê mora em /noivos/recebidos desde a task 24 (src/lib/admin-recebidos.ts).
  *
  * Só carrega em /noivos/presentes. A senha vale no servidor a cada chamada; aqui ela fica
  * em sessionStorage (fechou a aba, esqueceu) só para não ser pedida a cada ação.
@@ -43,40 +44,9 @@ interface Resposta {
     publicacao?: string;
     presentes?: Item[];
     presente?: Item;
-    recebidos?: Recebido[];
 }
 
-/** Task 22 §8: um presente recebido, para os cartões de agradecimento. */
-interface Recebido {
-    presente: string;
-    nome: string;
-    contato: string;
-    recado: string;
-    valor: number;
-    status: string;
-    canal: string;
-    metodo: string;
-    parcelas: number | null;
-    quando: string;
-    alerta: string;
-}
-
-const METODOS: Record<string, string> = {
-    credit_card: 'cartão de crédito',
-    debit_card: 'cartão de débito',
-    pix: 'Pix',
-    account_money: 'saldo Mercado Pago',
-};
-
-/** O que fazer em cada alerta (task 22 §6.6). */
-const ALERTAS: Record<string, string> = {
-    divergente: 'Valor pago diferente do presente. Confiram no Mercado Pago antes de considerar dado.',
-    excedente: 'Dado além do limite de pessoas. Decidam entre devolver pelo painel do Mercado Pago ou aceitar.',
-    duplicado: 'A pessoa pagou duas vezes. Devolvam um dos pagamentos pelo painel do Mercado Pago.',
-    disputa: 'Pagamento em disputa no Mercado Pago. Respondam pelo painel dentro do prazo.',
-    falha_preferencia: 'O pagamento não chegou a abrir. Nada foi cobrado.',
-};
-
+/** A mesma chave de src/lib/noivos.ts: entrou numa tela dos noivos, as outras abrem direto. */
 const CHAVE_SESSAO = 'gv-noivos';
 /** POST com pré-voo de imagem e chamada ao GitHub; o cold start do Apps Script já deu 7,5 s. */
 const TIMEOUT_MS = 25000;
@@ -121,8 +91,9 @@ export function adminPresentes(): void {
     const formEntrar = $<HTMLFormElement>('[data-entrar]');
     const painel = $('[data-painel]');
     const lista = $('[data-lista]');
-    const recebidos = $('[data-recebidos]');
     const mensagem = $('[data-mensagem]');
+    // Fica no componente Abas, fora de [data-admin].
+    const botaoSair = document.querySelector<HTMLButtonElement>('[data-sair]');
     const editor = $<HTMLFormElement>('[data-editor]');
     const campo = (n: string) => editor.elements.namedItem(n) as HTMLInputElement;
 
@@ -167,8 +138,8 @@ export function adminPresentes(): void {
         gravarSessao(null);
         painel.hidden = true;
         editor.hidden = true;
-        recebidos.hidden = true;
         formEntrar.hidden = false;
+        if (botaoSair) botaoSair.hidden = true;
         const erro = $('#erro-senha');
         erro.textContent = msg ?? '';
         erro.hidden = !msg;
@@ -223,6 +194,7 @@ export function adminPresentes(): void {
         formEntrar.hidden = true;
         editor.hidden = true;
         painel.hidden = false;
+        if (botaoSair) botaoSair.hidden = false;
         await carregar();
     }
 
@@ -317,78 +289,6 @@ export function adminPresentes(): void {
         void carregar();
     });
     $('[data-novo]').addEventListener('click', () => abrirEditor(null));
-
-    // ------------------------------------------------------------ recebidos (task 22 §8)
-
-    $('[data-ver-recebidos]').addEventListener('click', () => void abrirRecebidos());
-    $('[data-voltar-lista]').addEventListener('click', () => {
-        recebidos.hidden = true;
-        painel.hidden = false;
-    });
-
-    async function abrirRecebidos(): Promise<void> {
-        painel.hidden = true;
-        editor.hidden = true;
-        recebidos.hidden = false;
-        const alvo = $('[data-recebidos-lista]');
-        $('[data-recebidos-titulo]').focus();
-        alvo.textContent = 'Carregando…';
-        const r = await chamar({ acao: 'listarRecebidos' });
-        if (!r.ok || !r.recebidos) {
-            alvo.textContent = r.msg ?? 'Não conseguimos carregar.';
-            return;
-        }
-        alvo.textContent = '';
-        if (r.recebidos.length === 0) {
-            alvo.textContent = 'Nenhum presente recebido ainda.';
-            return;
-        }
-        const total = r.recebidos.filter((x) => x.status === 'confirmado').reduce((t, x) => t + x.valor, 0);
-        const resumo = document.createElement('p');
-        resumo.className = 'item__info';
-        resumo.textContent = `${r.recebidos.filter((x) => x.status === 'confirmado').length} presentes, ${reais(total)} no total (antes das taxas).`;
-        alvo.append(resumo);
-
-        const ul = document.createElement('ul');
-        ul.className = 'itens';
-        // Alertas primeiro: é o que pede ação.
-        const ordenados = [...r.recebidos].sort((a, b) => Number(Boolean(b.alerta)) - Number(Boolean(a.alerta)));
-        for (const x of ordenados) {
-            const li = document.createElement('li');
-            li.className = 'recebido';
-            const topo = document.createElement('p');
-            topo.className = 'item__nome';
-            topo.textContent = `${x.nome} deu ${x.presente}`;
-            const info = document.createElement('p');
-            info.className = 'item__info';
-            const como = x.canal === 'pix_manual'
-                ? 'Pix direto'
-                : (METODOS[x.metodo] ?? x.metodo) + (x.parcelas && x.parcelas > 1 ? ` em ${x.parcelas}x` : '');
-            const data = x.quando ? new Date(x.quando).toLocaleDateString('pt-BR') : '';
-            info.textContent = [reais(x.valor), como, data, x.contato].filter(Boolean).join(' · ');
-            li.append(topo, info);
-            if (x.recado) {
-                const rec = document.createElement('p');
-                rec.className = 'recebido__recado';
-                rec.textContent = `"${x.recado}"`;
-                li.append(rec);
-            }
-            if (x.status === 'estornado') {
-                const a = document.createElement('p');
-                a.className = 'recebido__alerta';
-                a.textContent = 'Devolvido: o presente voltou para a lista.';
-                li.append(a);
-            }
-            if (x.alerta) {
-                const a = document.createElement('p');
-                a.className = 'recebido__alerta';
-                a.textContent = ALERTAS[x.alerta] ?? `Atenção: ${x.alerta}`;
-                li.append(a);
-            }
-            ul.append(li);
-        }
-        alvo.append(ul);
-    }
 
     // ------------------------------------------------------------ editor
 
@@ -719,6 +619,11 @@ export function adminPresentes(): void {
         }
         await carregar();
         voltar(r.msg ?? `"${alvo.nome}" foi apagado. Vai sair do site ${quando(r)}.`);
+    });
+
+    botaoSair?.addEventListener('click', () => {
+        sair();
+        (formEntrar.elements.namedItem('senha') as HTMLInputElement).focus();
     });
 
     // ------------------------------------------------------------ início

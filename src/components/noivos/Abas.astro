@@ -1,0 +1,90 @@
+---
+/**
+ * Navegação entre as telas da área dos noivos (task 24). Fora da nav pública de propósito:
+ * quem chega aqui já sabe o endereço.
+ *
+ * O botão Sair só aparece depois da senha; quem o liga é o script da página
+ * (`iniciarArea()` em src/lib/noivos.ts, ou `admin-presentes.ts`).
+ */
+import { rota } from '../../lib/url';
+
+interface Props {
+    atual: 'presentes' | 'recebidos' | 'convidados';
+}
+
+const { atual } = Astro.props;
+
+const telas = [
+    { id: 'convidados', rotulo: 'Convidados', href: rota('/noivos/convidados/') },
+    { id: 'recebidos', rotulo: 'Presentes recebidos', href: rota('/noivos/recebidos/') },
+    { id: 'presentes', rotulo: 'Lista de presentes', href: rota('/noivos/presentes/') },
+] as const;
+---
+
+<nav class="abas" aria-label="Área dos noivos">
+    <ul>
+        {
+            telas.map((t) => (
+                <li>
+                    <a href={t.href} aria-current={t.id === atual ? 'page' : undefined}>
+                        {t.rotulo}
+                    </a>
+                </li>
+            ))
+        }
+    </ul>
+    <button type="button" class="abas__sair" data-sair hidden>Sair</button>
+</nav>
+
+<style>
+    .abas {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--e-2);
+        margin-block-end: var(--e-4);
+        border-block-end: 1px solid var(--borda);
+    }
+    ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 var(--e-3);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    a {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 44px;
+        font-size: var(--t-sm);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--texto-suave);
+        text-decoration: none;
+        border-block-end: 3px solid transparent;
+        margin-block-end: -1px;
+    }
+    a:hover {
+        color: var(--texto);
+    }
+    a[aria-current='page'] {
+        color: var(--texto);
+        border-block-end-color: var(--laranja);
+    }
+    .abas__sair {
+        min-block-size: 44px;
+        padding: 0;
+        background: none;
+        border: 0;
+        color: var(--link);
+        font-size: var(--t-sm);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        cursor: pointer;
+    }
+    .abas__sair[hidden] {
+        display: none;
+    }
+</style>

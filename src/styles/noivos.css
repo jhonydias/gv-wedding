@@ -1,0 +1,354 @@
+/*
+ * Telas de leitura da área dos noivos (task 24): /noivos/convidados e /noivos/recebidos.
+ *
+ * CSS global de propósito, mas só entra nas páginas que o importam (o Astro embute o CSS
+ * por página). Global porque a lista é montada pelo script: estilo com escopo do Astro não
+ * alcança elemento criado em runtime. Tudo com prefixo `nv-` para não vazar.
+ *
+ * Só tokens da task 02. O `--raio-produto` aparece só na foto do presente (task 14).
+ */
+
+.nv-cabeca {
+    display: flex;
+    align-items: flex-end;
+    min-block-size: 24svh;
+    padding-block: calc(var(--e-6) + var(--e-3)) var(--e-3);
+}
+.nv-cabeca__apoio {
+    margin-block-start: var(--e-1);
+    font-size: var(--t-sm);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+}
+.nv-secao {
+    padding-block: var(--e-4) var(--e-6);
+}
+
+[data-noivos] [hidden] {
+    display: none !important;
+}
+
+/* --- Resumo --- */
+.nv-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: var(--e-2);
+    margin: 0 0 var(--e-4);
+}
+.nv-resumo > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: var(--e-2);
+    background: var(--bg-alt);
+    border-block-start: 3px solid var(--oliva);
+}
+.nv-resumo > .nv-resumo--acento {
+    border-block-start-color: var(--laranja);
+}
+.nv-resumo dt {
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+}
+.nv-resumo dd {
+    margin: 0;
+    font-family: var(--fonte-display);
+    font-size: var(--t-xl);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.nv-resumo .nv-resumo__extra {
+    font-family: var(--fonte-texto);
+    font-size: var(--t-xs);
+    line-height: 1.4;
+    color: var(--texto-suave);
+}
+
+/* --- Barra de busca, filtros e ações --- */
+.nv-barra {
+    display: grid;
+    gap: var(--e-2);
+    margin-block-end: var(--e-3);
+}
+@media (min-width: 52rem) {
+    .nv-barra {
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        align-items: end;
+    }
+    .nv-barra > .nv-filtros,
+    .nv-barra > .nv-acoes {
+        grid-column: 1 / -1;
+    }
+}
+.nv-campo {
+    display: grid;
+    gap: 0.35rem;
+}
+.nv-campo label,
+.nv-filtros legend {
+    font-size: var(--t-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+.nv-campo input,
+.nv-campo select {
+    inline-size: 100%;
+    min-block-size: 44px;
+    padding: 0.6rem 0.75rem;
+    background: var(--creme);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+    color: var(--texto);
+    font-size: 1rem; /* 16px: abaixo disso o iOS dá zoom ao focar */
+}
+
+.nv-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-1);
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.nv-filtros legend {
+    inline-size: 100%;
+    margin-block-end: 0.35rem;
+    padding: 0;
+}
+.nv-filtros label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+    padding: 0 var(--e-2);
+    border: 1px solid var(--borda);
+    border-radius: 999px;
+    font-size: var(--t-sm);
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+.nv-filtros input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+}
+.nv-filtros label:has(input:checked) {
+    background: var(--oliva);
+    border-color: var(--oliva);
+    color: var(--creme);
+}
+.nv-filtros label:has(input:focus-visible) {
+    outline: 2px solid var(--foco);
+    outline-offset: 3px;
+}
+
+.nv-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--e-1);
+}
+
+.nv-estado {
+    margin-block: 0 var(--e-2);
+    font-size: var(--t-sm);
+    color: var(--texto-suave);
+}
+.nv-mensagem {
+    margin-block: 0 var(--e-3);
+    padding: var(--e-2);
+    border: 2px solid var(--oliva);
+    border-radius: var(--raio);
+    font-size: var(--t-sm);
+}
+.nv-erro {
+    margin-block: 0 var(--e-3);
+    padding: var(--e-2);
+    border: 2px solid var(--laranja-texto);
+    border-radius: var(--raio);
+    color: var(--laranja-texto);
+    font-size: var(--t-sm);
+}
+.nv-erro button {
+    margin-inline-start: var(--e-1);
+}
+.nv-vazio {
+    padding: var(--e-4) var(--e-2);
+    text-align: center;
+    color: var(--texto-suave);
+    border: 1px dashed var(--borda);
+}
+
+/* --- Lista --- */
+.nv-lista {
+    display: grid;
+    gap: var(--e-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.nv-item {
+    display: grid;
+    gap: 0.35rem;
+    padding: var(--e-2);
+    background: var(--bg-alt);
+    border-inline-start: 3px solid transparent;
+}
+.nv-item--vai {
+    border-inline-start-color: var(--oliva);
+}
+.nv-item--nao {
+    border-inline-start-color: var(--lilas);
+}
+.nv-item--alerta {
+    border-inline-start-color: var(--laranja);
+}
+.nv-item--com-foto {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    column-gap: var(--e-2);
+    align-items: start;
+}
+.nv-item--com-foto > :not(.nv-foto) {
+    grid-column: 2;
+}
+.nv-item--com-foto > .nv-foto {
+    grid-row: 1 / span 6;
+}
+.nv-item__topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem var(--e-2);
+}
+.nv-item__nome {
+    margin: 0;
+    font-family: var(--fonte-texto);
+    font-size: var(--t-base);
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    overflow-wrap: anywhere;
+}
+.nv-item__lado {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--e-1);
+}
+.nv-item__valor {
+    font-family: var(--fonte-display);
+    font-size: var(--t-lg);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.nv-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.9rem;
+    margin: 0;
+    font-size: var(--t-xs);
+    color: var(--texto-suave);
+    overflow-wrap: anywhere;
+}
+.nv-item__meta a {
+    color: var(--link);
+    text-underline-offset: 3px;
+}
+.nv-recado {
+    margin: 0.2rem 0 0;
+    padding-inline-start: var(--e-2);
+    border-inline-start: 2px solid var(--borda);
+    font-size: var(--t-sm);
+    font-style: italic;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+.nv-nota {
+    margin: 0;
+    font-size: var(--t-xs);
+    color: var(--texto-suave);
+}
+.nv-nota--alerta {
+    font-size: var(--t-sm);
+    font-weight: 600;
+    color: var(--laranja-texto);
+}
+
+.nv-selo {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.6rem;
+    border: 1px solid var(--borda);
+    border-radius: 999px;
+    font-size: var(--t-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.nv-selo--vai {
+    background: var(--oliva);
+    border-color: var(--oliva);
+    color: var(--creme);
+}
+.nv-selo--alerta {
+    border-color: var(--laranja-texto);
+    color: var(--laranja-texto);
+}
+
+/* Foto do presente: produto sobre branco, inteiro (task 14). */
+.nv-foto {
+    display: grid;
+    place-items: center;
+    inline-size: 4rem;
+    block-size: 4rem;
+    overflow: hidden;
+    background: #fff;
+    border-radius: var(--raio-produto);
+    object-fit: contain;
+}
+.nv-foto svg {
+    inline-size: 1.6rem;
+    color: color-mix(in srgb, var(--laranja) 55%, transparent);
+}
+
+/* --- Seções e grupos --- */
+.nv-bloco {
+    margin-block-end: var(--e-4);
+}
+.nv-bloco__titulo {
+    margin-block-end: var(--e-2);
+    font-size: var(--t-lg);
+}
+.nv-bloco__apoio {
+    margin-block: calc(var(--e-1) * -1) var(--e-2);
+    font-size: var(--t-sm);
+    color: var(--texto-suave);
+}
+.nv-grupo .nv-lista {
+    margin-block-start: var(--e-1);
+}
+.nv-grupo .nv-item {
+    background: transparent;
+    border: 0;
+    border-block-start: 1px solid var(--borda);
+    padding-inline: 0;
+}
+
+@media print {
+    .nv-cabeca,
+    .nv-barra,
+    .abas,
+    nav,
+    footer {
+        display: none !important;
+    }
+    .nv-item {
+        break-inside: avoid;
+    }
+}
