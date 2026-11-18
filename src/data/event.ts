@@ -47,9 +47,9 @@ export interface Evento {
     /** O Espaço FRA é coberto? Respondido pelos noivos em 16/08/2026. */
     coberto: boolean | null;
     /**
-     * Último instante em que o RSVP é aceito, com offset. Definido pelos noivos em 26/09/2026:
-     * "até 16 de novembro", o dia inteiro em Belém. É aplicado em três lugares (task 16 §3):
-     * no build e no cliente (`/confirmar`) e no servidor (`rsvp_ate` na `Config`). Mudou aqui,
+     * Último instante em que o RSVP é aceito, com offset. Desde 18/11/2026 é a véspera do
+     * casamento, "até 15 de janeiro", o dia inteiro em Belém (antes era 16 de novembro).
+     * É aplicado em três lugares (task 16 §3): no build e no cliente (`/confirmar`) e no servidor (`rsvp_ate` na `Config`). Mudou aqui,
      * muda lá.
      */
     rsvpAte: string | null;
@@ -76,7 +76,7 @@ export const EVENTO: Evento = {
 
     termino: null,
     coberto: true,
-    rsvpAte: '2026-11-16T23:59:59-03:00',
+    rsvpAte: '2027-01-15T23:59:59-03:00',
 };
 
 /** Fuso do evento. Toda formatação de data/hora precisa passar por aqui. */
@@ -114,7 +114,7 @@ export function dataSemDiaDaSemana(): string {
     }).format(QUANDO);
 }
 
-/** Prazo do RSVP por extenso, "16 de novembro", ou `null` se não há prazo. */
+/** Prazo do RSVP por extenso, "15 de janeiro", ou `null` se não há prazo. */
 export function prazoRsvpPorExtenso(): string | null {
     if (!EVENTO.rsvpAte) return null;
     return new Intl.DateTimeFormat('pt-BR', {

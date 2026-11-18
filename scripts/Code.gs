@@ -85,7 +85,7 @@ const CONFIG_PADRAO = [
     ['site_url', 'https://giseleevictor.com.br'],
     // A conta dona do script: é ela que envia os e-mails e recebe o aviso de cada RSVP.
     ['email_noivos', 'giseleevictorcasamento@gmail.com'],
-    ['rsvp_ate', '2026-11-16T23:59:59-03:00'],
+    ['rsvp_ate', '2027-01-15T23:59:59-03:00'],
     // Referência: o BR Code é gerado no build com PUBLIC_PIX_CHAVE, que tem de ser esta.
     ['pix_chave', '312c7e14-437d-44fe-a588-9f4b26d32792'],
     // ⚠️ TRUE = nada é enviado de verdade. Só vire para FALSE com autorização dos noivos.
@@ -2243,7 +2243,7 @@ function horaEvento_(cfg) {
     return partesEmBelem_(cfg.evento_quando).hora + 'h';
 }
 
-/** "16 de novembro". */
+/** "15 de janeiro". */
 function prazoRsvp_(cfg) {
     const p = partesEmBelem_(cfg.rsvp_ate);
     return p.dia + ' de ' + p.mes;

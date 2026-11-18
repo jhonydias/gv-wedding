@@ -62,7 +62,7 @@ o convidado escolhia, o pagamento falhava, e o presente sumia para todo mundo.
 | `evento_local` · `evento_endereco` | já preenchidos |
 | `site_url` | URL pública do site |
 | `email_noivos` | `giseleevictorcasamento@gmail.com`, a conta dona do script: envia os e-mails e recebe a notificação de cada RSVP |
-| `rsvp_ate` | `2026-11-16T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
+| `rsvp_ate` | `2027-01-15T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
 | `pix_chave` | `312c7e14-437d-44fe-a588-9f4b26d32792` (VICTOR H S DE SANTANA, BELEM). Referência; o BR Code é gerado no build com `PUBLIC_PIX_CHAVE`, que tem de ser a mesma |
 | **`modo_simulacao`** | **`TRUE` = nada é enviado de verdade** |
 | `lote_email_max` | teto de e-mails por execução (padrão 80) |
@@ -384,7 +384,7 @@ A URL continua a mesma.
 - [x] ~~Substituir a chave Pix de teste pela real~~ `.env` e secret com a chave aleatória real
 - [ ] Cadastrar os presentes reais (curadoria dos noivos)
 - [ ] Criar o secret `PUBLIC_BACKEND_URL` no GitHub
-- [x] ~~Definir `rsvp_ate`~~: 16/11/2026, definido pelos noivos em 26/09/2026 (task 16)
+- [x] ~~Definir `rsvp_ate`~~: 15/01/2027, véspera do casamento (antes 16/11/2026, task 16)
 - [ ] Atualizar na planilha em uso `evento_quando` e `rsvp_ate` (o `configurarPlanilha()` não
       sobrescreve uma `Config` já preenchida)
 - [ ] Rodar a campanha em simulação e conferir o `Log`
