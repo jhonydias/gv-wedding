@@ -62,7 +62,7 @@ o convidado escolhia, o pagamento falhava, e o presente sumia para todo mundo.
 | `evento_local` · `evento_endereco` | já preenchidos |
 | `site_url` | URL pública do site |
 | `email_noivos` | `giseleevictorcasamento@gmail.com`, a conta dona do script: envia os e-mails e recebe a notificação de cada RSVP |
-| `rsvp_ate` | `2027-01-15T23:59:59-03:00`. Depois disso o servidor **recusa** RSVP. Vazio = sem prazo |
+| `rsvp_ate` | `2027-01-15T23:59:59-03:00`. Só informativo (painel dos noivos e e-mails); o servidor **não recusa** RSVP depois dele. Vazio = sem prazo |
 | `pix_chave` | `312c7e14-437d-44fe-a588-9f4b26d32792` (VICTOR H S DE SANTANA, BELEM). Referência; o BR Code é gerado no build com `PUBLIC_PIX_CHAVE`, que tem de ser a mesma |
 | **`modo_simulacao`** | **`TRUE` = nada é enviado de verdade** |
 | `lote_email_max` | teto de e-mails por execução (padrão 80) |
@@ -76,8 +76,9 @@ site, que é outra fonte, ver task 16). Nenhum e-mail tem data digitada; não pr
 versão da implantação. A `Config` fica em cache por até 2 minutos.
 
 **O prazo do RSVP existe em dois lugares:** `rsvp_ate` aqui e `EVENTO.rsvpAte` no
-`event.ts`. O site usa o dele para mostrar o prazo e esconder o formulário; o servidor usa
-este para recusar. Mudou um, mude o outro.
+`event.ts`. O site usa o dele para mostrar o prazo e esconder o formulário; este aqui só
+aparece no painel dos noivos e nos e-mails. Desde 18/11/2026 o servidor **não recusa** RSVP
+pelo prazo. Mudou um, mude o outro.
 
 ---
 

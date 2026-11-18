@@ -460,15 +460,8 @@ function rsvp_(bruto) {
         return json_({ ok: false, msg: 'Escolha se você vai ou não.' });
     }
 
-    // Prazo (task 16 §3). É a camada que manda: o site estático pode ficar sem build depois
-    // do prazo, e um POST direto nem passa pelo site.
-    const cfg = config_();
-    if (prazoEncerrado_(cfg)) {
-        return json_({
-            ok: false,
-            msg: 'O prazo de confirmação encerrou em ' + prazoRsvp_(cfg) + '.',
-        });
-    }
+    // Prazo: o servidor NÃO recusa mais RSVP fora do prazo (decisão de 18/11/2026). O prazo
+    // só existe no site (build e cliente) e no painel dos noivos (`encerrado`).
 
     if (rateLimitado_(d.contato)) {
         return json_({ ok: false, msg: 'Muitas tentativas seguidas. Tente de novo em alguns minutos.' });
