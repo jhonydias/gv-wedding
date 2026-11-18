@@ -47,9 +47,9 @@ export function validarCampo(nome: string, valor: string, comparece: string | nu
 /**
  * O prazo passou? Lido do `data-rsvp-ate` que a `/confirmar` põe no HTML (task 16 §3).
  *
- * É a segunda das três camadas: o build já não renderiza o formulário depois do prazo, mas
- * o site pode ficar semanas sem build. Sem atributo, ou com data inválida, não fecha nada:
- * quem decide de verdade é o servidor.
+ * É a segunda das duas camadas: o build já não renderiza o formulário depois do prazo, mas
+ * o site pode ficar semanas sem build. Sem atributo, ou com data inválida, não fecha nada
+ * (o servidor não aplica prazo).
  */
 export function prazoEncerrado(agora: number = Date.now()): boolean {
     const bruto = document.querySelector<HTMLElement>('[data-rsvp-ate]')?.dataset.rsvpAte;
@@ -134,8 +134,8 @@ export function rsvp(): void {
         e.preventDefault();
         if (painelErro) painelErro.hidden = true;
 
-        // A página pode ter ficado aberta desde antes do prazo. O servidor recusaria de
-        // qualquer forma; aqui a resposta vem na hora, sem a volta ao Apps Script.
+        // A página pode ter ficado aberta desde antes do prazo. O servidor não aplica
+        // prazo, então esta é a última barreira antes do envio.
         if (prazoEncerrado()) {
             encerrar(form);
             return;

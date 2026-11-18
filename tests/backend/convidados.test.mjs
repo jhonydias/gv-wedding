@@ -60,3 +60,8 @@ test('Config: chave apagada e linha em branco no meio não atrapalham a leitura'
     assert.equal(a.get('ping').ok, true);
     assert.equal(rsvp(a, 'Ana Primeira', 'ana@t.com').ok, true);
 });
+
+test('RSVP depois do prazo da Config é aceito: o servidor não trava mais pelo prazo', () => {
+    const a = criarAmbiente({ config: [['rsvp_ate', '2020-11-16T23:59:59-03:00']] });
+    assert.equal(rsvp(a, 'Depois Do Prazo', 'tarde@t.com').ok, true);
+});

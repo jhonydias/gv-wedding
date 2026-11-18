@@ -49,8 +49,8 @@ export interface Evento {
     /**
      * Último instante em que o RSVP é aceito, com offset. Desde 18/11/2026 é a véspera do
      * casamento, "até 15 de janeiro", o dia inteiro em Belém (antes era 16 de novembro).
-     * É aplicado em três lugares (task 16 §3): no build e no cliente (`/confirmar`) e no servidor (`rsvp_ate` na `Config`). Mudou aqui,
-     * muda lá.
+     * Aplicado só no site (task 16 §3): no build e no cliente (`/confirmar`). O servidor não
+     * recusa mais pelo prazo; `rsvp_ate` na `Config` é só informativo. Mudou aqui, muda lá.
      */
     rsvpAte: string | null;
 }

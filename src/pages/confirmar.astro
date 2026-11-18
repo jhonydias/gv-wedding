@@ -10,12 +10,12 @@ import {
 } from '../data/event';
 
 /**
- * Prazo de confirmação, aplicado em três camadas (task 16 §3):
+ * Prazo de confirmação, aplicado em duas camadas (task 16 §3):
  *
  * 1. aqui, no BUILD: passado o prazo, o formulário nem é renderizado;
  * 2. no CLIENTE (`rsvp.ts`, lendo `data-rsvp-ate`): o site é estático e pode ficar semanas
  *    sem build depois do prazo, então só a checagem de build deixaria o formulário aberto;
- * 3. no SERVIDOR (`rsvp_` no `Code.gs`, lendo `rsvp_ate` da `Config`), que é quem manda.
+ * (o SERVIDOR deixou de recusar RSVP pelo prazo em 18/11/2026; só o site aplica o prazo.)
  */
 const prazo = EVENTO.rsvpAte ? new Date(EVENTO.rsvpAte) : null;
 const encerrado = prazo !== null && Date.now() > prazo.getTime();
