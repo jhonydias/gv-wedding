@@ -15,7 +15,7 @@ const PORTA = Number(process.env.PORTA ?? 8787);
 const SENHA = 'senha-local-123';
 
 const a = criarAmbiente({
-    config: [['rsvp_ate', '2026-11-16T23:59:59-03:00']],
+    config: [['rsvp_ate', '2027-01-15T23:59:59-03:00']],
     presentes: [
         ['luvas-de-boxe', 'Luvas de boxe pra ir na pipoca do trio elétrico do Bell Marques', 250, 'salvador', 'https://placehold.co/300x300/png?text=Luvas', '', true, 1, 10, false],
         ['batom', 'Mais um batom idêntico aos outros 20 que a Gisele já tem', 90, 'gisele', '', '', true, 5, 20, false],
