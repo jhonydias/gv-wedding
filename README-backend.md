@@ -135,6 +135,19 @@ npx -y @google/clasp@3.4.1 -u noivos redeploy <deploymentId> -V <N> -d "o que mu
 - O `push` troca o arquivo remoto inteiro. No editor ele aparece como `Code` (antes era
   `Código`, de quando o código era colado à mão).
 
+### Publicação automática (GitHub Actions)
+
+O `.github/workflows/backend.yml` roda a cada push na `main` que mexe em `scripts/` (ou à mão,
+em *Actions → Backend (Apps Script) → Run workflow*): testes do backend → `clasp push` →
+nova versão → `redeploy` na implantação de `PUBLIC_BACKEND_URL` → `ping`. Teste falhando, não sobe.
+
+Precisa de um secret a mais, **`CLASPRC_JSON`**: o conteúdo inteiro do `~/.clasprc.json`
+depois de `npx -y @google/clasp@3.4.1 -u noivos login` com a conta dos noivos
+(*Settings → Secrets and variables → Actions → New repository secret*). O nome do login não
+importa, o workflow usa o primeiro token do arquivo. É um refresh token da conta dos noivos:
+só no secret, nunca no repositório. Se um dia der `invalid_grant`, refaça o login e troque o
+secret (acontece se a senha mudar ou o acesso do clasp for revogado).
+
 ---
 
 ## 5. Conectar o front
@@ -370,7 +383,8 @@ conciliação é idempotente.
 | **E-mail não chega** | `modo_simulacao=TRUE`, cota estourada, ou spam. Veja o `Log` |
 | **Linha não aparece** | Apps Script → **Execuções** → última → detalhes |
 
-**Editou o `Code.gs`?** Salvar não basta:
+**Editou o `Code.gs`?** Salvar não basta. Pelo repositório é automático: o merge na `main`
+dispara o workflow **Backend (Apps Script)** (ver §4). À mão, no editor:
 *Implantar → Gerenciar implantações → ✏️ → Versão: **Nova versão** → Implantar.*
 A URL continua a mesma.
 

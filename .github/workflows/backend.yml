@@ -1,0 +1,94 @@
+name: Backend (Apps Script)
+
+# Publica o `scripts/` no Apps Script sempre que ele muda na main: push do código, nova
+# versão e redeploy NA MESMA implantação do site (a URL não muda). Ver README-backend §4.
+#
+# Secrets:
+#   CLASPRC_JSON        conteúdo do ~/.clasprc.json de um `clasp login` com a conta dos noivos
+#   PUBLIC_BACKEND_URL  já existe; o deploymentId sai dele (/macros/s/<id>/exec)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - '.clasp.json'
+      - 'tests/backend/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Nunca dois deploys ao mesmo tempo; e o mais novo não cancela um que já está no meio.
+concurrency:
+  group: apps-script
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      CLASP: npx -y @google/clasp@3.4.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Backend que não passa nos testes não sobe.
+      - name: Testar backend
+        run: npm run test:backend
+
+      - name: Credenciais e implantação
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::Secret CLASPRC_JSON ausente. Ver README-backend.md §4."; exit 1
+          fi
+          # O login pode ter sido salvo com qualquer nome (-u noivos, default...). Fica o
+          # primeiro token, regravado como `default`, e os comandos rodam sem -u.
+          printf '%s' "$CLASPRC_JSON" \
+            | jq '{tokens: {default: (.tokens | to_entries[0].value)}}' > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+
+          id=$(printf '%s' "$PUBLIC_BACKEND_URL" | sed -nE 's#.*/macros/s/([^/]+)/exec.*#\1#p')
+          if [ -z "$id" ]; then
+            echo "::error::Não deu para extrair o deploymentId de PUBLIC_BACKEND_URL."; exit 1
+          fi
+          echo "::add-mask::$id"
+          echo "DEPLOYMENT_ID=$id" >> "$GITHUB_ENV"
+
+      - name: Push, versão e redeploy
+        run: |
+          set -euo pipefail
+          desc="$(git log -1 --format=%s | cut -c1-90) (${GITHUB_SHA::7})"
+          $CLASP push --force
+          saida=$($CLASP create-version "$desc")
+          echo "$saida"
+          versao=$(printf '%s' "$saida" | grep -oE 'version [0-9]+' | grep -oE '[0-9]+' | tail -1)
+          [ -n "$versao" ] || { echo "::error::Versão não criada."; exit 1; }
+          # redeploy, nunca deploy: deploy cria outra implantação com URL nova.
+          $CLASP redeploy "$DEPLOYMENT_ID" -V "$versao" -d "$desc"
+          echo "### Apps Script: versão $versao publicada" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Conferir (ping)
+        env:
+          PUBLIC_BACKEND_URL: ${{ secrets.PUBLIC_BACKEND_URL }}
+        run: |
+          set -euo pipefail
+          sleep 5
+          r=$(curl -sSL --retry 3 "$PUBLIC_BACKEND_URL?acao=ping")
+          echo "$r"
+          printf '%s' "$r" | jq -e '.ok == true' > /dev/null
+
+      - name: Apagar credenciais
+        if: always()
+        run: rm -f ~/.clasprc.json
